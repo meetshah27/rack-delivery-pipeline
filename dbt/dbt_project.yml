@@ -22,6 +22,8 @@ vars:
   # replays history one change date at a time).
   contracts_as_of:
   fiscal_year_start_month: 1
+  # QuickSight user name of the dashboard owner; sees every region (ops.rls_site_region).
+  qs_owner_user_name:
 
 models:
   rack_delivery:

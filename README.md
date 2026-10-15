@@ -165,18 +165,26 @@ make ground-truth # how well the facts recover the true milestones
 make mf-validate  # semantic layer checks
 ```
 
-On AWS (`.env` from `.env.example`):
+On AWS, in one deployment window (`.env` from `.env.example`; the $1 budget and its deny-all action exist first, per [DEPLOY_WINDOW.md](docs/DEPLOY_WINDOW.md)):
 
 ```sh
-make tf-apply     # S3, Redshift Serverless with usage limit, IAM, SNS, SSM
-make upload && make dbt-build
-make schedule-on  # daily runs; make schedule-off to pause
-make qs-deploy    # QuickSight datasets, analysis and dashboard from JSON
-make cost
-make teardown
+make tf-bootstrap && make tf-init   # once: Terraform state bucket and lock table
+make tf-apply                       # package, apply, create DB users/tables/grants, upload dbt project
+make sim SIM_END=<yesterday>        # history up to yesterday, so the daily run continues it
+make upload && make load-raw        # landing files to S3, then the land and COPY Lambdas
+make verify-raw                     # raw.rack_events per ingest date vs landed lines
+make dbt-bootstrap                  # first dbt build on CodeBuild: SCD2 replay, then everything
+make run-pipeline                   # one full state machine execution
+make schedule-on                    # daily at 06:00 UTC; make schedule-off to pause
+# QuickSight subscribed, QS_ENABLED=true in .env:
+make tf-apply && make qs-deploy && make rls-check && make qs-snapshot
+make cost && make evidence
+make teardown                       # destroy, then verify nothing tagged is left
 ```
 
-CI runs lint, strict type checks, the simulator tests, a dbt build on a 60-day simulation, the semantic-layer validation, and the backfill idempotency check on every push.
+dbt only ever runs on CodeBuild in the cloud, so one database identity owns every dbt table; the operator's identity can read everything but writes nothing.
+
+CI runs lint, strict type checks, the simulator, orchestration and ops tests, a dbt build on a 60-day simulation, the semantic-layer validation, the backfill idempotency check, and Terraform format and validation on every push.
 
 ## Repository layout
 
@@ -184,9 +192,9 @@ CI runs lint, strict type checks, the simulator tests, a dbt build on a 60-day s
 simulator/       event generator with deliberate defects, config.yaml, tests
 orchestration/   land_to_raw conversion, Lambda handlers, Step Functions definition
 dbt/             staging, intermediate, marts, ops and semantic models; snapshots, macros, seeds, tests, analyses
-infra/           Terraform: bootstrap state, modules, dev environment
-ops/             snapshot replay, backfill, ground-truth report, cost report, QuickSight deploy and snapshot
-dashboards/      QuickSight dashboard definition JSON
+infra/           Terraform (bootstrap, storage, warehouse, pipeline, quicksight, dev env) and SQL migrations
+ops/             packaging, migrations, pipeline runners, backfill, ground truth, cost, QuickSight build/deploy/snapshot/RLS check, evidence, teardown check
+dashboards/      QuickSight dataset definitions and the generated dashboard definition
 docs/            spec, data model, dashboard spec, simulator spec, build plan
 ```
 
@@ -195,7 +203,8 @@ docs/            spec, data model, dashboard spec, simulator spec, build plan
 | Part | Status |
 |---|---|
 | Simulator, raw conversion, dbt staging through marts, SCD2, contracts, semantic layer, backfill and ground-truth checks | Built and verified on DuckDB (numbers above) |
-| Terraform, Lambda ingestion, Step Functions, CodeBuild, CloudWatch, QuickSight as code | Specified in `docs/`, not yet deployed; built and run in one cost-capped AWS window, then torn down ([plan](docs/DEPLOY_WINDOW.md)) |
+| Terraform (bootstrap + 4 modules), Lambda handlers, Step Functions definition, CodeBuild buildspec, Redshift migrations, QuickSight datasets and dashboard definition, ops scripts | Built and checked without AWS: `terraform validate`, Lambda handlers run end to end against an in-memory S3 and a DuckDB-backed Redshift Data API, state machine graph checks, dashboard JSON validated against QuickSight's API schema |
+| The deployment itself: Redshift, the 7-day scheduled run, QuickSight, cost per run, evidence | Not yet run; happens in one cost-capped AWS window, then torn down ([plan](docs/DEPLOY_WINDOW.md)) |
 
 ## Limitations
 

@@ -8,14 +8,17 @@ rack_delivery:
       path: "{{ env_var('DBT_DUCKDB_PATH', '../local/warehouse.duckdb') }}"
       schema: main
       threads: 4
+    # Redshift Serverless with IAM role auth: the caller (the CodeBuild role, or an operator's
+    # IAM user via AWS_PROFILE) maps to the database user IAMR:<role> / IAM:<user> that
+    # infra/sql grants write access to. Host and workgroup come from Terraform outputs.
     dev:
       type: redshift
-      method: iam
+      method: iam_role
       host: "{{ env_var('REDSHIFT_HOST', '') }}"
       port: 5439
       dbname: "{{ env_var('REDSHIFT_DATABASE', 'dev') }}"
-      user: "{{ env_var('REDSHIFT_DBT_USER', 'dbt') }}"
       region: "{{ env_var('AWS_REGION', 'us-west-2') }}"
       iam_profile: "{{ env_var('AWS_PROFILE', '') }}"
+      serverless_work_group: "{{ env_var('REDSHIFT_WORKGROUP', '') }}"
       schema: staging
       threads: 4

@@ -16,7 +16,9 @@ dependencies = [
 dev = [
     "dbt-metricflow[dbt-duckdb]>=0.15",
     "mypy>=1.11",
+    "pillow>=10",
     "pre-commit>=3.8",
+    "pypdfium2>=4.30",
     "pytest>=8.3",
     "ruff>=0.6",
     "sqlfluff>=3.1",
@@ -39,7 +41,7 @@ python_version = "3.12"
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["pyarrow", "pyarrow.*"]
+module = ["pyarrow", "pyarrow.*", "boto3", "boto3.*", "botocore.*", "pypdfium2"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

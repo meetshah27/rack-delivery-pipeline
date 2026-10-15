@@ -20,3 +20,18 @@ models:
       - name: quarantined_at
         description: When the row was quarantined, naive UTC.
         data_tests: [not_null]
+
+  - name: rls_site_region
+    description: >
+      QuickSight row-level security rules for ds_delivery: one row per user and site_region
+      they may see. A null site_region means every region (the dashboard owner).
+    columns:
+      - name: user_name
+        description: QuickSight user name.
+        data_tests: [not_null]
+      - name: site_region
+        description: us-west, us-east, eu-central or ap-south; null for all regions.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [us-west, us-east, eu-central, ap-south]

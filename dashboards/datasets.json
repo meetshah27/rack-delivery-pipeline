@@ -1,0 +1,95 @@
+{
+  "ds_delivery": {
+    "name": "Rack delivery",
+    "rls": true,
+    "sql": "select f.rack_id, f.ordered_at, f.shipped_at, f.received_at, f.cabled_at, f.production_at, f.decommissioned_at, f.vendor_lead_hours, f.transit_hours, f.install_hours, f.burn_in_hours, f.end_to_end_hours, f.current_status, f.current_status_since, f.days_in_current_status, f.sla_days, f.sla_due_at, case when f.is_sla_breached then 1 else 0 end as is_sla_breached, case when f.is_overdue_open then 1 else 0 end as is_overdue_open, f.regression_count, v.vendor_code, v.vendor_name, v.contract_tier, s.site_code, s.site_name, s.site_region, t.rack_type_code, t.description as rack_type_description, case when t.is_gpu then 1 else 0 end as is_gpu from marts.fct_rack_delivery f left join marts.dim_vendor v on f.vendor_sk = v.vendor_sk left join marts.dim_site s on f.site_sk = s.site_sk left join marts.dim_rack_type t on f.rack_type_sk = t.rack_type_sk",
+    "columns": {
+      "rack_id": "STRING",
+      "ordered_at": "DATETIME",
+      "shipped_at": "DATETIME",
+      "received_at": "DATETIME",
+      "cabled_at": "DATETIME",
+      "production_at": "DATETIME",
+      "decommissioned_at": "DATETIME",
+      "vendor_lead_hours": "DECIMAL",
+      "transit_hours": "DECIMAL",
+      "install_hours": "DECIMAL",
+      "burn_in_hours": "DECIMAL",
+      "end_to_end_hours": "DECIMAL",
+      "current_status": "STRING",
+      "current_status_since": "DATETIME",
+      "days_in_current_status": "INTEGER",
+      "sla_days": "INTEGER",
+      "sla_due_at": "DATETIME",
+      "is_sla_breached": "INTEGER",
+      "is_overdue_open": "INTEGER",
+      "regression_count": "INTEGER",
+      "vendor_code": "STRING",
+      "vendor_name": "STRING",
+      "contract_tier": "STRING",
+      "site_code": "STRING",
+      "site_name": "STRING",
+      "site_region": "STRING",
+      "rack_type_code": "STRING",
+      "rack_type_description": "STRING",
+      "is_gpu": "INTEGER"
+    }
+  },
+  "ds_cycle_monthly": {
+    "name": "Cycle time by month",
+    "sql": "select month, vendor_code, site_code, stage, p50_hours, p90_hours, mean_hours, rack_count from marts.agg_cycle_time_monthly",
+    "columns": {
+      "month": "DATETIME",
+      "vendor_code": "STRING",
+      "site_code": "STRING",
+      "stage": "STRING",
+      "p50_hours": "DECIMAL",
+      "p90_hours": "DECIMAL",
+      "mean_hours": "DECIMAL",
+      "rack_count": "INTEGER"
+    }
+  },
+  "ds_throughput": {
+    "name": "Daily throughput",
+    "sql": "select date, site_code, racks_to_production, racks_to_production_7d_avg, open_wip from marts.agg_daily_throughput",
+    "columns": {
+      "date": "DATETIME",
+      "site_code": "STRING",
+      "racks_to_production": "INTEGER",
+      "racks_to_production_7d_avg": "DECIMAL",
+      "open_wip": "INTEGER"
+    }
+  },
+  "ds_pipeline_health": {
+    "name": "Pipeline health",
+    "sql": "select run_id, started_at, finished_at, status, ingest_date_min, ingest_date_max, rows_landed, rows_loaded_raw, rows_quarantined, rows_fct_event_merged, late_event_count, dbt_tests_passed, dbt_tests_warned, dbt_tests_failed, redshift_charged_seconds, est_cost_usd, cast(rows_quarantined as double precision) / nullif(rows_landed, 0) as quarantine_rate from ops.pipeline_run_audit",
+    "columns": {
+      "run_id": "STRING",
+      "started_at": "DATETIME",
+      "finished_at": "DATETIME",
+      "status": "STRING",
+      "ingest_date_min": "DATETIME",
+      "ingest_date_max": "DATETIME",
+      "rows_landed": "INTEGER",
+      "rows_loaded_raw": "INTEGER",
+      "rows_quarantined": "INTEGER",
+      "rows_fct_event_merged": "INTEGER",
+      "late_event_count": "INTEGER",
+      "dbt_tests_passed": "INTEGER",
+      "dbt_tests_warned": "INTEGER",
+      "dbt_tests_failed": "INTEGER",
+      "redshift_charged_seconds": "INTEGER",
+      "est_cost_usd": "DECIMAL",
+      "quarantine_rate": "DECIMAL"
+    }
+  },
+  "ds_rls_permissions": {
+    "name": "RLS rules (site region)",
+    "sql": "select user_name, site_region from ops.rls_site_region",
+    "columns": {
+      "user_name": "STRING",
+      "site_region": "STRING"
+    },
+    "rename": {"user_name": "UserName"}
+  }
+}

@@ -1,0 +1,35 @@
+# CodeBuild: runs dbt against Redshift Serverless as the CodeBuild role (dbt profile `dev`,
+# method iam_role). Source is build/dbt_project.zip, uploaded by `make package-upload`.
+# Step Functions overrides RUN_ID; a backfill sets START_DATE/END_DATE; the first cloud build
+# sets MODE=bootstrap to replay vendor contract history into the SCD2 snapshot.
+version: 0.2
+
+env:
+  variables:
+    RUN_ID: manual
+    START_DATE: ""
+    END_DATE: ""
+    MODE: daily
+    QS_OWNER_USER_NAME: ""
+
+phases:
+  install:
+    commands:
+      - pip install --quiet uv
+      - uv sync --frozen --no-dev
+  build:
+    commands:
+      - |
+        VARS="run_id: '$RUN_ID'"
+        [ -n "$START_DATE" ] && VARS="$VARS, start_date: '$START_DATE', end_date: '$END_DATE'"
+        [ -n "$QS_OWNER_USER_NAME" ] && VARS="$VARS, qs_owner_user_name: '$QS_OWNER_USER_NAME'"
+        export DBT_VARS="{$VARS}"
+      - cd dbt && uv run dbt deps
+      - |
+        if [ "$MODE" = "bootstrap" ]; then
+          uv run dbt build --target dev --select staging seeds --vars "$DBT_VARS"
+          (cd .. && uv run python -m ops.snapshot_replay --target dev)
+        fi
+      - uv run dbt build --target dev --vars "$DBT_VARS"
+    finally:
+      - aws s3 cp target/run_results.json "s3://$BUCKET/runs/$RUN_ID/dbt/run_results.json" || true

@@ -1,8 +1,12 @@
 """Landing -> raw conversion: JSON Lines / CSV files into typed Parquet with load metadata.
 
-`rack_events_to_table` is the conversion the Phase 3 `land_to_raw` Lambda wraps. The CLI is the
-local-track stand-in for that Lambda: it converts every landed file under ./out/landing into
-./out/raw, which the dbt `local` target reads with read_parquet.
+Lambda (`handler`): converts every landed file in S3 that ops.file_manifest has not recorded
+(by key and md5) and writes the Parquet to the raw/ prefix. It does not record the manifest:
+copy_to_redshift does that in the same transaction as the COPY, so a file is only ever marked
+loaded once its rows are in raw.*.
+
+CLI: the local-track stand-in. Converts everything under ./out into ./out/raw, which the dbt
+`local` target reads with read_parquet.
 
     python -m orchestration.land_to_raw --out ./out
 """
@@ -10,15 +14,22 @@ local-track stand-in for that Lambda: it converts every landed file under ./out/
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
+import json
+import os
 import shutil
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
+from typing import Any
 
 import pyarrow as pa
 import pyarrow.csv as pcsv
 import pyarrow.json as pjson
 import pyarrow.parquet as pq
+
+from orchestration.redshift_data import RedshiftData
 
 # Payload v2 (schema drift) renames rack_type_code to rack_model; raw keeps both columns and
 # staging maps them back, so drift never breaks the load.
@@ -98,40 +109,138 @@ def csv_to_table(data: bytes, ingest_date: date | None) -> pa.Table:
     return table
 
 
-def _partition_date(path: Path) -> date:
-    return date.fromisoformat(path.parent.name.removeprefix("ingest_date="))
+@dataclass(frozen=True)
+class SourceFile:
+    """A landed file and where its Parquet goes. Keys are relative to the bucket (or ./out)."""
+
+    key: str
+    table: str
+    ingest_date: date | None
+    raw_key: str
+
+
+def classify(key: str) -> SourceFile | None:
+    """The raw table a landed file feeds, or None for anything that is not a source file."""
+    parts = key.split("/")
+    if (
+        len(parts) == 4
+        and parts[0] == "landing"
+        and parts[1] in ("rack_events", "vendor_contracts")
+        and parts[2].startswith("ingest_date=")
+    ):
+        day = date.fromisoformat(parts[2].removeprefix("ingest_date="))
+        return SourceFile(key, parts[1], day, f"raw/{parts[1]}/{parts[2]}/part-0000.parquet")
+    if len(parts) == 2 and parts[0] == "reference" and parts[1] in ("sites.csv", "rack_types.csv"):
+        table = parts[1].removesuffix(".csv")
+        return SourceFile(key, table, None, f"raw/{table}/part-0000.parquet")
+    return None
+
+
+def convert(src: SourceFile, data: bytes, run_id: str, loaded_at: datetime) -> pa.Table:
+    if src.table == "rack_events":
+        assert src.ingest_date is not None
+        return rack_events_to_table(data, src.ingest_date, run_id, loaded_at, src.key)
+    return csv_to_table(data, src.ingest_date)
+
+
+def parquet_bytes(table: pa.Table) -> bytes:
+    buffer = io.BytesIO()
+    pq.write_table(table, buffer)
+    return buffer.getvalue()
+
+
+# ---------------------------------------------------------------- Lambda
+
+
+def list_objects(s3: Any, bucket: str, prefix: str) -> list[dict[str, Any]]:
+    objects: list[dict[str, Any]] = []
+    kwargs: dict[str, Any] = {"Bucket": bucket, "Prefix": prefix}
+    while True:
+        page = s3.list_objects_v2(**kwargs)
+        objects += page.get("Contents", [])
+        if not page.get("IsTruncated"):
+            return objects
+        kwargs["ContinuationToken"] = page["NextContinuationToken"]
+
+
+def land(s3: Any, rd: RedshiftData, bucket: str, run_id: str, now: datetime) -> dict[str, Any]:
+    """Convert pending landed files to raw Parquet; list them in runs/<run_id>/land_to_raw.json."""
+    loaded = {
+        (row["source_file"], row["md5"])
+        for row in rd.query("select source_file, md5 from ops.file_manifest")
+    }
+    files: list[dict[str, Any]] = []
+    for prefix in ("landing/", "reference/"):
+        for obj in list_objects(s3, bucket, prefix):
+            src = classify(obj["Key"])
+            if src is None:
+                continue
+            md5 = obj["ETag"].strip('"')
+            data: bytes | None = None
+            if "-" in md5:  # multipart upload: the ETag is not the md5
+                data = s3.get_object(Bucket=bucket, Key=src.key)["Body"].read()
+                md5 = hashlib.md5(data).hexdigest()
+            if (src.key, md5) in loaded:
+                continue
+            if data is None:
+                data = s3.get_object(Bucket=bucket, Key=src.key)["Body"].read()
+            table = convert(src, data, run_id, now)
+            body = parquet_bytes(table)
+            s3.put_object(Bucket=bucket, Key=src.raw_key, Body=body)
+            files.append(
+                {
+                    "table": src.table,
+                    "source_file": src.key,
+                    "md5": md5,
+                    "raw_key": src.raw_key,
+                    "content_length": len(body),
+                    "row_count": table.num_rows,
+                    "ingest_date": src.ingest_date.isoformat() if src.ingest_date else None,
+                }
+            )
+
+    # The file list goes to S3, not the Step Functions payload (256 KB limit on a backfill).
+    files_key = f"runs/{run_id}/land_to_raw.json"
+    s3.put_object(Bucket=bucket, Key=files_key, Body=json.dumps(files).encode())
+    event_files = [f for f in files if f["table"] == "rack_events"]
+    dates = sorted(f["ingest_date"] for f in event_files)
+    return {
+        "run_id": run_id,
+        "files_key": files_key,
+        "files": len(files),
+        "rows_landed": sum(f["row_count"] for f in event_files),
+        "ingest_date_min": dates[0] if dates else None,
+        "ingest_date_max": dates[-1] if dates else None,
+    }
+
+
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+    import boto3
+
+    rd = RedshiftData.from_env(boto3.client("redshift-data"))
+    return land(boto3.client("s3"), rd, os.environ["BUCKET"], event["run_id"], datetime.now(UTC))
+
+
+# ---------------------------------------------------------------- local track
 
 
 def convert_local(out: Path) -> dict[str, int]:
-    """Convert every landed file under out/landing into out/raw. Returns rows per raw table."""
-    landing, raw = out / "landing", out / "raw"
-    shutil.rmtree(raw, ignore_errors=True)  # raw is fully derived from landing; no stale days
+    """Convert every landed file under out/ into out/raw. Returns rows per raw table."""
+    shutil.rmtree(out / "raw", ignore_errors=True)  # raw is fully derived from landing
     counts = {"rack_events": 0, "vendor_contracts": 0, "sites": 0, "rack_types": 0}
-
-    for src in sorted((landing / "rack_events").glob("ingest_date=*/*.jsonl.gz")):
-        day = _partition_date(src)
-        loaded_at = datetime.combine(day + timedelta(days=1), LOCAL_LOAD_TIME, UTC)
-        table = rack_events_to_table(
-            src.read_bytes(), day, LOCAL_RUN_ID, loaded_at, src.relative_to(out).as_posix()
+    for path in sorted([*(out / "landing").rglob("*"), *(out / "reference").glob("*")]):
+        src = classify(path.relative_to(out).as_posix())
+        if src is None:
+            continue
+        loaded_at = datetime.combine(
+            (src.ingest_date or date.min) + timedelta(days=1), LOCAL_LOAD_TIME, UTC
         )
-        _write(table, raw / "rack_events" / src.parent.name / "part-0000.parquet")
-        counts["rack_events"] += table.num_rows
-
-    for src in sorted((landing / "vendor_contracts").glob("ingest_date=*/*.csv")):
-        table = csv_to_table(src.read_bytes(), _partition_date(src))
-        _write(table, raw / "vendor_contracts" / src.parent.name / "part-0000.parquet")
-        counts["vendor_contracts"] += table.num_rows
-
-    for name in ("sites", "rack_types"):
-        table = csv_to_table((out / "reference" / f"{name}.csv").read_bytes(), None)
-        _write(table, raw / name / "part-0000.parquet")
-        counts[name] = table.num_rows
+        table = convert(src, path.read_bytes(), LOCAL_RUN_ID, loaded_at)
+        target = out / src.raw_key
+        target.parent.mkdir(parents=True, exist_ok=True)
+        pq.write_table(table, target)
+        counts[src.table] += table.num_rows
     return counts
-
-
-def _write(table: pa.Table, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(table, path)
 
 
 def main(argv: list[str] | None = None) -> None:

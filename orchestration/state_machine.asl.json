@@ -1,0 +1,129 @@
+{
+  "Comment": "Rack delivery pipeline: simulate, land, load, dbt build, audit, refresh QuickSight. Rendered by Terraform (templatefile).",
+  "StartAt": "Simulate",
+  "States": {
+    "Simulate": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${simulate_arn}", "Payload.$": "$"},
+      "ResultSelector": {"output.$": "$.Payload"},
+      "ResultPath": "$.simulate",
+      "Retry": [{"ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException", "Lambda.SdkClientException"], "IntervalSeconds": 5, "MaxAttempts": 3, "BackoffRate": 2}],
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RecordFailure"}],
+      "Next": "LandToRaw"
+    },
+    "LandToRaw": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${land_to_raw_arn}", "Payload": {"run_id.$": "$$.Execution.Name"}},
+      "ResultSelector": {"output.$": "$.Payload"},
+      "ResultPath": "$.land_result",
+      "Retry": [{"ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException", "Lambda.SdkClientException"], "IntervalSeconds": 5, "MaxAttempts": 3, "BackoffRate": 2}],
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RecordFailure"}],
+      "Next": "CopyToRedshift"
+    },
+    "CopyToRedshift": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${copy_to_redshift_arn}",
+        "Payload": {
+          "run_id.$": "$$.Execution.Name",
+          "files_key.$": "$.land_result.output.files_key",
+          "ground_truth_key.$": "$.simulate.output.ground_truth_key"
+        }
+      },
+      "ResultSelector": {"output.$": "$.Payload"},
+      "ResultPath": "$.copy_result",
+      "Retry": [{"ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException", "Lambda.SdkClientException"], "IntervalSeconds": 5, "MaxAttempts": 3, "BackoffRate": 2}],
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RecordFailure"}],
+      "Next": "DbtBuild"
+    },
+    "DbtBuild": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::codebuild:startBuild.sync",
+      "Parameters": {
+        "ProjectName": "${codebuild_project}",
+        "EnvironmentVariablesOverride": [{"Name": "RUN_ID", "Type": "PLAINTEXT", "Value.$": "$$.Execution.Name"}]
+      },
+      "ResultPath": null,
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RecordFailure"}],
+      "Next": "RecordSuccess"
+    },
+    "RecordSuccess": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${audit_writer_arn}",
+        "Payload": {
+          "run_id.$": "$$.Execution.Name",
+          "started_at.$": "$$.Execution.StartTime",
+          "status": "SUCCEEDED",
+          "state": {"land.$": "$.land_result.output", "copy.$": "$.copy_result.output"}
+        }
+      },
+      "ResultPath": null,
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure"}],
+      "Next": "QuickSightDatasets"
+    },
+    "QuickSightDatasets": {
+      "Type": "Pass",
+      "Parameters": {"run_id.$": "$$.Execution.Name", "dataset_ids": ${quicksight_dataset_ids}},
+      "ResultPath": "$.quicksight",
+      "Next": "RefreshQuickSight"
+    },
+    "RefreshQuickSight": {
+      "Type": "Map",
+      "ItemsPath": "$.quicksight.dataset_ids",
+      "ItemSelector": {"dataset_id.$": "$$.Map.Item.Value", "run_id.$": "$.quicksight.run_id"},
+      "ItemProcessor": {
+        "ProcessorConfig": {"Mode": "INLINE"},
+        "StartAt": "CreateIngestion",
+        "States": {
+          "CreateIngestion": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:quicksight:createIngestion",
+            "Parameters": {
+              "AwsAccountId": "${account_id}",
+              "DataSetId.$": "$.dataset_id",
+              "IngestionId.$": "States.Format('{}-{}', $.run_id, $.dataset_id)"
+            },
+            "End": true
+          }
+        }
+      },
+      "ResultPath": null,
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure"}],
+      "Next": "Done"
+    },
+    "RecordFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${audit_writer_arn}",
+        "Payload": {
+          "run_id.$": "$$.Execution.Name",
+          "started_at.$": "$$.Execution.StartTime",
+          "status": "FAILED",
+          "state": {"error.$": "$.error"}
+        }
+      },
+      "ResultPath": null,
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.audit_error", "Next": "NotifyFailure"}],
+      "Next": "NotifyFailure"
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${sns_topic_arn}",
+        "Subject": "Rack delivery pipeline run failed",
+        "Message.$": "States.Format('Run {} failed. {}', $$.Execution.Name, States.JsonToString($.error))"
+      },
+      "ResultPath": null,
+      "Next": "Failed"
+    },
+    "Done": {"Type": "Succeed"},
+    "Failed": {"Type": "Fail", "Error": "PipelineRunFailed", "Cause": "See the audit table and the SNS notification."}
+  }
+}

@@ -31,3 +31,15 @@ jobs:
           make backfill START=2024-11-01 END=2024-11-15 | grep fct_ > run2.txt
           cat run1.txt
           diff run1.txt run2.txt
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+      - name: Format
+        run: terraform -chdir=infra fmt -check -recursive
+      - name: Validate bootstrap
+        run: terraform -chdir=infra/bootstrap init -backend=false -input=false && terraform -chdir=infra/bootstrap validate
+      - name: Validate dev
+        run: terraform -chdir=infra/envs/dev init -backend=false -input=false && terraform -chdir=infra/envs/dev validate

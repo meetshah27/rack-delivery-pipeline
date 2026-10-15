@@ -62,11 +62,17 @@ def fact_fingerprint(fact: str, target: str) -> tuple[int, int]:
 
 
 def backfill(start: date, end: date, target: str) -> dict[str, tuple[int, int]]:
-    run_dbt(
-        ["build", "--select", *FACTS, "--quiet"],
-        target,
-        {"start_date": start.isoformat(), "end_date": end.isoformat()},
-    )
+    if target == "local":
+        run_dbt(
+            ["build", "--select", *FACTS, "--quiet"],
+            target,
+            {"start_date": start.isoformat(), "end_date": end.isoformat()},
+        )
+    else:
+        # On Redshift dbt only runs on CodeBuild, so one identity owns every dbt table.
+        from ops.pipeline import dbt
+
+        dbt("daily", start, end)
     return {fact: fact_fingerprint(fact, target) for fact in FACTS}
 
 

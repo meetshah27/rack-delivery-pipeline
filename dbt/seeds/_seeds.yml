@@ -22,3 +22,13 @@ seeds:
       - name: is_regression
         description: True for legitimate backward moves (failed burn-in back to CABLED).
         data_tests: [not_null]
+
+  - name: rls_users
+    description: QuickSight reader users and the site region each may see (row-level security).
+    columns:
+      - name: user_name
+        description: QuickSight user name, as registered by ops/rls_check.py.
+        data_tests: [unique, not_null]
+      - name: site_region
+        description: Region the user may see.
+        data_tests: [not_null]

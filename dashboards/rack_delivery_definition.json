@@ -1,0 +1,1699 @@
+{
+  "DataSetIdentifierDeclarations": [
+    {
+      "Identifier": "ds_delivery",
+      "DataSetArn": "arn:aws:quicksight:${region}:${account_id}:dataset/ds_delivery"
+    },
+    {
+      "Identifier": "ds_cycle_monthly",
+      "DataSetArn": "arn:aws:quicksight:${region}:${account_id}:dataset/ds_cycle_monthly"
+    },
+    {
+      "Identifier": "ds_throughput",
+      "DataSetArn": "arn:aws:quicksight:${region}:${account_id}:dataset/ds_throughput"
+    },
+    {
+      "Identifier": "ds_pipeline_health",
+      "DataSetArn": "arn:aws:quicksight:${region}:${account_id}:dataset/ds_pipeline_health"
+    }
+  ],
+  "Sheets": [
+    {
+      "SheetId": "executive",
+      "Name": "Executive",
+      "Visuals": [
+        {
+          "KPIVisual": {
+            "VisualId": "exec-on-time",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "What share of racks reached production within SLA this month, vs last month?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "Values": [
+                  {
+                    "NumericalMeasureField": {
+                      "FieldId": "on_time_flag-1",
+                      "Column": {
+                        "DataSetIdentifier": "ds_delivery",
+                        "ColumnName": "on_time_flag"
+                      },
+                      "AggregationFunction": {
+                        "SimpleNumericalAggregation": "AVERAGE"
+                      }
+                    }
+                  }
+                ],
+                "TrendGroups": [
+                  {
+                    "DateDimensionField": {
+                      "FieldId": "production_at-2",
+                      "Column": {
+                        "DataSetIdentifier": "ds_delivery",
+                        "ColumnName": "production_at"
+                      },
+                      "DateGranularity": "MONTH",
+                      "FormatConfiguration": {
+                        "DateTimeFormat": "MMM yyyy"
+                      }
+                    }
+                  }
+                ],
+                "TargetValues": [
+                  {
+                    "NumericalMeasureField": {
+                      "FieldId": "on_time_target-3",
+                      "Column": {
+                        "DataSetIdentifier": "ds_delivery",
+                        "ColumnName": "on_time_target"
+                      },
+                      "AggregationFunction": {
+                        "SimpleNumericalAggregation": "AVERAGE"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "ConditionalFormatting": {
+              "ConditionalFormattingOptions": [
+                {
+                  "PrimaryValue": {
+                    "TextColor": {
+                      "Solid": {
+                        "Expression": "AVG({on_time_flag}) < 0.9",
+                        "Color": "#C8102E"
+                      }
+                    }
+                  }
+                },
+                {
+                  "PrimaryValue": {
+                    "TextColor": {
+                      "Solid": {
+                        "Expression": "NOT (AVG({on_time_flag}) < 0.9)",
+                        "Color": "#2E7D32"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "KPIVisual": {
+            "VisualId": "exec-p90",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "How many days does the slowest 10% take, order to production?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "Values": [
+                  {
+                    "NumericalMeasureField": {
+                      "FieldId": "end_to_end_days-4",
+                      "Column": {
+                        "DataSetIdentifier": "ds_delivery",
+                        "ColumnName": "end_to_end_days"
+                      },
+                      "AggregationFunction": {
+                        "PercentileAggregation": {
+                          "PercentileValue": 90
+                        }
+                      }
+                    }
+                  }
+                ],
+                "TrendGroups": [
+                  {
+                    "DateDimensionField": {
+                      "FieldId": "production_at-5",
+                      "Column": {
+                        "DataSetIdentifier": "ds_delivery",
+                        "ColumnName": "production_at"
+                      },
+                      "DateGranularity": "MONTH",
+                      "FormatConfiguration": {
+                        "DateTimeFormat": "MMM yyyy"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "KPIVisual": {
+            "VisualId": "exec-in-flight",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "How many racks are ordered but not yet in production?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "Values": [
+                  {
+                    "NumericalMeasureField": {
+                      "FieldId": "in_flight_flag-6",
+                      "Column": {
+                        "DataSetIdentifier": "ds_delivery",
+                        "ColumnName": "in_flight_flag"
+                      },
+                      "AggregationFunction": {
+                        "SimpleNumericalAggregation": "SUM"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "KPIVisual": {
+            "VisualId": "exec-overdue",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "How many open racks are past their SLA due date?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "Values": [
+                  {
+                    "NumericalMeasureField": {
+                      "FieldId": "is_overdue_open-7",
+                      "Column": {
+                        "DataSetIdentifier": "ds_delivery",
+                        "ColumnName": "is_overdue_open"
+                      },
+                      "AggregationFunction": {
+                        "SimpleNumericalAggregation": "SUM"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "ConditionalFormatting": {
+              "ConditionalFormattingOptions": [
+                {
+                  "PrimaryValue": {
+                    "TextColor": {
+                      "Solid": {
+                        "Expression": "SUM({is_overdue_open}) > 0",
+                        "Color": "#C8102E"
+                      }
+                    }
+                  }
+                },
+                {
+                  "PrimaryValue": {
+                    "TextColor": {
+                      "Solid": {
+                        "Expression": "NOT (SUM({is_overdue_open}) > 0)",
+                        "Color": "#2E7D32"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "LineChartVisual": {
+            "VisualId": "exec-vendor-trend",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "How has each vendor's on-time rate moved over the last 12 months?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "LineChartAggregatedFieldWells": {
+                  "Category": [
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "production_at-8",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "production_at"
+                        },
+                        "DateGranularity": "MONTH",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM yyyy"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "on_time_flag-9",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "on_time_flag"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "AVERAGE"
+                        }
+                      }
+                    }
+                  ],
+                  "Colors": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "vendor_name-10",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "vendor_name"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "ComboChartVisual": {
+            "VisualId": "exec-throughput",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "How many racks reach production each week, and what is the trend?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "ComboChartAggregatedFieldWells": {
+                  "Category": [
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "date-11",
+                        "Column": {
+                          "DataSetIdentifier": "ds_throughput",
+                          "ColumnName": "date"
+                        },
+                        "DateGranularity": "WEEK",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM d, yyyy"
+                        }
+                      }
+                    }
+                  ],
+                  "BarValues": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "racks_to_production-12",
+                        "Column": {
+                          "DataSetIdentifier": "ds_throughput",
+                          "ColumnName": "racks_to_production"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    }
+                  ],
+                  "LineValues": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "racks_to_production_7d_avg-13",
+                        "Column": {
+                          "DataSetIdentifier": "ds_throughput",
+                          "ColumnName": "racks_to_production_7d_avg"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "TextBoxes": [
+        {
+          "SheetTextBoxId": "exec-note",
+          "Content": "<text-box>Data refreshes daily after the 06:00 UTC pipeline run; the Pipeline Health sheet shows the last successful run. On-time means production by the SLA of the contract version in effect when the rack was ordered. The data is synthetic, generated by the project's simulator.</text-box>"
+        }
+      ],
+      "Layouts": [
+        {
+          "Configuration": {
+            "GridLayout": {
+              "Elements": [
+                {
+                  "ElementId": "exec-on-time",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 9,
+                  "RowIndex": 0,
+                  "RowSpan": 6
+                },
+                {
+                  "ElementId": "exec-p90",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 9,
+                  "ColumnSpan": 9,
+                  "RowIndex": 0,
+                  "RowSpan": 6
+                },
+                {
+                  "ElementId": "exec-in-flight",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 18,
+                  "ColumnSpan": 9,
+                  "RowIndex": 0,
+                  "RowSpan": 6
+                },
+                {
+                  "ElementId": "exec-overdue",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 27,
+                  "ColumnSpan": 9,
+                  "RowIndex": 0,
+                  "RowSpan": 6
+                },
+                {
+                  "ElementId": "exec-vendor-trend",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 18,
+                  "RowIndex": 6,
+                  "RowSpan": 12
+                },
+                {
+                  "ElementId": "exec-throughput",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 18,
+                  "ColumnSpan": 18,
+                  "RowIndex": 6,
+                  "RowSpan": 12
+                },
+                {
+                  "ElementId": "exec-note",
+                  "ElementType": "TEXT_BOX",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 36,
+                  "RowIndex": 18,
+                  "RowSpan": 3
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "SheetId": "cycle-time",
+      "Name": "Cycle Time",
+      "Visuals": [
+        {
+          "BarChartVisual": {
+            "VisualId": "cycle-stages",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "Where does the time go, stage by stage, for each vendor? (median hours)"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "BarChartAggregatedFieldWells": {
+                  "Category": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "vendor_name-18",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "vendor_name"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "vendor_lead_hours-14",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "vendor_lead_hours"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "MEDIAN"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "transit_hours-15",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "transit_hours"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "MEDIAN"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "install_hours-16",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "install_hours"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "MEDIAN"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "burn_in_hours-17",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "burn_in_hours"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "MEDIAN"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Orientation": "HORIZONTAL",
+              "BarsArrangement": "STACKED"
+            }
+          }
+        },
+        {
+          "BoxPlotVisual": {
+            "VisualId": "cycle-site-box",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "How spread out is order-to-production time at each site? (days)"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "BoxPlotAggregatedFieldWells": {
+                  "GroupBy": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "site_code-19",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "site_code"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "end_to_end_days-20",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "end_to_end_days"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "AVERAGE"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "HeatMapVisual": {
+            "VisualId": "cycle-install-heat",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "Which sites and months had the slowest installs? (p90 hours)"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "HeatMapAggregatedFieldWells": {
+                  "Rows": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "site_code-21",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "site_code"
+                        }
+                      }
+                    }
+                  ],
+                  "Columns": [
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "cabled_at-22",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "cabled_at"
+                        },
+                        "DateGranularity": "MONTH",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM yyyy"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "install_hours-23",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "install_hours"
+                        },
+                        "AggregationFunction": {
+                          "PercentileAggregation": {
+                            "PercentileValue": 90
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "FilterControls": [
+        {
+          "Dropdown": {
+            "FilterControlId": "c-cycle-vendor_name",
+            "Title": "Vendor",
+            "SourceFilterId": "f-cycle-vendor_name",
+            "Type": "MULTI_SELECT"
+          }
+        },
+        {
+          "Dropdown": {
+            "FilterControlId": "c-cycle-site_code",
+            "Title": "Site",
+            "SourceFilterId": "f-cycle-site_code",
+            "Type": "MULTI_SELECT"
+          }
+        },
+        {
+          "Dropdown": {
+            "FilterControlId": "c-cycle-rack_type_description",
+            "Title": "Rack type",
+            "SourceFilterId": "f-cycle-rack_type_description",
+            "Type": "MULTI_SELECT"
+          }
+        },
+        {
+          "DateTimePicker": {
+            "FilterControlId": "c-cycle-order-month",
+            "Title": "Order month",
+            "SourceFilterId": "f-cycle-order-month",
+            "Type": "DATE_RANGE"
+          }
+        }
+      ],
+      "Layouts": [
+        {
+          "Configuration": {
+            "GridLayout": {
+              "Elements": [
+                {
+                  "ElementId": "cycle-stages",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 36,
+                  "RowIndex": 0,
+                  "RowSpan": 12
+                },
+                {
+                  "ElementId": "cycle-site-box",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 18,
+                  "RowIndex": 12,
+                  "RowSpan": 12
+                },
+                {
+                  "ElementId": "cycle-install-heat",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 18,
+                  "ColumnSpan": 18,
+                  "RowIndex": 12,
+                  "RowSpan": 12
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "SheetId": "sla-breaches",
+      "Name": "SLA Breaches",
+      "Visuals": [
+        {
+          "TableVisual": {
+            "VisualId": "sla-overdue",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "Which open racks are overdue, and by how many days?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "TableAggregatedFieldWells": {
+                  "GroupBy": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "rack_id-25",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "rack_id"
+                        }
+                      }
+                    },
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "site_code-26",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "site_code"
+                        }
+                      }
+                    },
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "vendor_name-27",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "vendor_name"
+                        }
+                      }
+                    },
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "current_status-28",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "current_status"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "days_in_current_status-29",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "days_in_current_status"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "MAX"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "days_overdue-24",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "days_overdue"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "MAX"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "SortConfiguration": {
+                "RowSort": [
+                  {
+                    "FieldSort": {
+                      "FieldId": "days_overdue-24",
+                      "Direction": "DESC"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "BarChartVisual": {
+            "VisualId": "sla-breaches",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "Which vendors and contract tiers miss SLA most? (drill: vendor > site > rack)"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "BarChartAggregatedFieldWells": {
+                  "Category": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "vendor_name-30",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "vendor_name"
+                        },
+                        "HierarchyId": "h-vendor-site-rack"
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "breached_completed-31",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "breached_completed"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    }
+                  ],
+                  "Colors": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "contract_tier-32",
+                        "Column": {
+                          "DataSetIdentifier": "ds_delivery",
+                          "ColumnName": "contract_tier"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "Orientation": "HORIZONTAL",
+              "BarsArrangement": "CLUSTERED"
+            },
+            "ColumnHierarchies": [
+              {
+                "ExplicitHierarchy": {
+                  "HierarchyId": "h-vendor-site-rack",
+                  "Columns": [
+                    {
+                      "DataSetIdentifier": "ds_delivery",
+                      "ColumnName": "vendor_name"
+                    },
+                    {
+                      "DataSetIdentifier": "ds_delivery",
+                      "ColumnName": "site_code"
+                    },
+                    {
+                      "DataSetIdentifier": "ds_delivery",
+                      "ColumnName": "rack_id"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "Layouts": [
+        {
+          "Configuration": {
+            "GridLayout": {
+              "Elements": [
+                {
+                  "ElementId": "sla-overdue",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 20,
+                  "RowIndex": 0,
+                  "RowSpan": 14
+                },
+                {
+                  "ElementId": "sla-breaches",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 20,
+                  "ColumnSpan": 16,
+                  "RowIndex": 0,
+                  "RowSpan": 14
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "SheetId": "pipeline-health",
+      "Name": "Pipeline Health",
+      "Visuals": [
+        {
+          "TableVisual": {
+            "VisualId": "health-last-run",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "Did the last run succeed, and when did it finish?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "TableAggregatedFieldWells": {
+                  "GroupBy": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "status-34",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "status"
+                        }
+                      }
+                    },
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "finished_at-35",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "finished_at"
+                        },
+                        "DateGranularity": "DAY",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM d, yyyy"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "redshift_charged_seconds-33",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "redshift_charged_seconds"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "KPIVisual": {
+            "VisualId": "health-hours",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "How many hours since the last successful run?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "Values": [
+                  {
+                    "NumericalMeasureField": {
+                      "FieldId": "hours_since_success-36",
+                      "Column": {
+                        "DataSetIdentifier": "ds_pipeline_health",
+                        "ColumnName": "hours_since_success"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "ConditionalFormatting": {
+              "ConditionalFormattingOptions": [
+                {
+                  "PrimaryValue": {
+                    "TextColor": {
+                      "Solid": {
+                        "Expression": "{hours_since_success} > 26",
+                        "Color": "#C8102E"
+                      }
+                    }
+                  }
+                },
+                {
+                  "PrimaryValue": {
+                    "TextColor": {
+                      "Solid": {
+                        "Expression": "NOT ({hours_since_success} > 26)",
+                        "Color": "#2E7D32"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "LineChartVisual": {
+            "VisualId": "health-quarantine",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "Is the quarantine rate per run under 5%?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "LineChartAggregatedFieldWells": {
+                  "Category": [
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "started_at-37",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "started_at"
+                        },
+                        "DateGranularity": "DAY",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM d, yyyy"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "quarantine_rate-38",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "quarantine_rate"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "MAX"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "ReferenceLines": [
+                {
+                  "DataConfiguration": {
+                    "StaticConfiguration": {
+                      "Value": 0.05
+                    }
+                  },
+                  "StyleConfiguration": {
+                    "Pattern": "DASHED",
+                    "Color": "#C8102E"
+                  },
+                  "LabelConfiguration": {
+                    "CustomLabelConfiguration": {
+                      "CustomLabel": "5% limit"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "LineChartVisual": {
+            "VisualId": "health-cost",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "What does each run cost?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "LineChartAggregatedFieldWells": {
+                  "Category": [
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "started_at-39",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "started_at"
+                        },
+                        "DateGranularity": "DAY",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM d, yyyy"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "est_cost_usd-40",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "est_cost_usd"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "TableVisual": {
+            "VisualId": "health-runs",
+            "Title": {
+              "Visibility": "VISIBLE",
+              "FormatText": {
+                "PlainText": "What happened in the last 14 runs?"
+              }
+            },
+            "ChartConfiguration": {
+              "FieldWells": {
+                "TableAggregatedFieldWells": {
+                  "GroupBy": [
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "run_id-41",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "run_id"
+                        }
+                      }
+                    },
+                    {
+                      "CategoricalDimensionField": {
+                        "FieldId": "status-42",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "status"
+                        }
+                      }
+                    },
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "started_at-43",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "started_at"
+                        },
+                        "DateGranularity": "DAY",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM d, yyyy"
+                        }
+                      }
+                    },
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "finished_at-44",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "finished_at"
+                        },
+                        "DateGranularity": "DAY",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM d, yyyy"
+                        }
+                      }
+                    },
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "ingest_date_min-45",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "ingest_date_min"
+                        },
+                        "DateGranularity": "DAY",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM d, yyyy"
+                        }
+                      }
+                    },
+                    {
+                      "DateDimensionField": {
+                        "FieldId": "ingest_date_max-46",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "ingest_date_max"
+                        },
+                        "DateGranularity": "DAY",
+                        "FormatConfiguration": {
+                          "DateTimeFormat": "MMM d, yyyy"
+                        }
+                      }
+                    }
+                  ],
+                  "Values": [
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "rows_landed-47",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "rows_landed"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "rows_loaded_raw-48",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "rows_loaded_raw"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "rows_quarantined-49",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "rows_quarantined"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "rows_fct_event_merged-50",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "rows_fct_event_merged"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "late_event_count-51",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "late_event_count"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "dbt_tests_passed-52",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "dbt_tests_passed"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "dbt_tests_warned-53",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "dbt_tests_warned"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "dbt_tests_failed-54",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "dbt_tests_failed"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "redshift_charged_seconds-55",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "redshift_charged_seconds"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    },
+                    {
+                      "NumericalMeasureField": {
+                        "FieldId": "est_cost_usd-56",
+                        "Column": {
+                          "DataSetIdentifier": "ds_pipeline_health",
+                          "ColumnName": "est_cost_usd"
+                        },
+                        "AggregationFunction": {
+                          "SimpleNumericalAggregation": "SUM"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "Layouts": [
+        {
+          "Configuration": {
+            "GridLayout": {
+              "Elements": [
+                {
+                  "ElementId": "health-last-run",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 18,
+                  "RowIndex": 0,
+                  "RowSpan": 6
+                },
+                {
+                  "ElementId": "health-hours",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 18,
+                  "ColumnSpan": 18,
+                  "RowIndex": 0,
+                  "RowSpan": 6
+                },
+                {
+                  "ElementId": "health-quarantine",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 18,
+                  "RowIndex": 6,
+                  "RowSpan": 10
+                },
+                {
+                  "ElementId": "health-cost",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 18,
+                  "ColumnSpan": 18,
+                  "RowIndex": 6,
+                  "RowSpan": 10
+                },
+                {
+                  "ElementId": "health-runs",
+                  "ElementType": "VISUAL",
+                  "ColumnIndex": 0,
+                  "ColumnSpan": 36,
+                  "RowIndex": 16,
+                  "RowSpan": 12
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "CalculatedFields": [
+    {
+      "DataSetIdentifier": "ds_delivery",
+      "Name": "on_time_flag",
+      "Expression": "ifelse(isNull({production_at}), NULL, ifelse({is_sla_breached} = 0, 1, 0))"
+    },
+    {
+      "DataSetIdentifier": "ds_delivery",
+      "Name": "on_time_target",
+      "Expression": "0.9"
+    },
+    {
+      "DataSetIdentifier": "ds_delivery",
+      "Name": "end_to_end_days",
+      "Expression": "{end_to_end_hours} / 24"
+    },
+    {
+      "DataSetIdentifier": "ds_delivery",
+      "Name": "in_flight_flag",
+      "Expression": "ifelse(isNull({production_at}) AND isNull({decommissioned_at}), 1, 0)"
+    },
+    {
+      "DataSetIdentifier": "ds_delivery",
+      "Name": "breached_completed",
+      "Expression": "ifelse(isNotNull({production_at}) AND {is_sla_breached} = 1, 1, 0)"
+    },
+    {
+      "DataSetIdentifier": "ds_delivery",
+      "Name": "days_overdue",
+      "Expression": "dateDiff({sla_due_at}, now(), \"DD\")"
+    },
+    {
+      "DataSetIdentifier": "ds_pipeline_health",
+      "Name": "hours_since_success",
+      "Expression": "dateDiff(max(ifelse({status} = \"SUCCEEDED\", {finished_at}, NULL)), now(), \"HH\")"
+    },
+    {
+      "DataSetIdentifier": "ds_pipeline_health",
+      "Name": "quarantine_limit",
+      "Expression": "0.05"
+    }
+  ],
+  "FilterGroups": [
+    {
+      "FilterGroupId": "fg-last-12-months",
+      "CrossDataset": "SINGLE_DATASET",
+      "Status": "ENABLED",
+      "Filters": [
+        {
+          "RelativeDatesFilter": {
+            "FilterId": "f-last-12-months",
+            "Column": {
+              "DataSetIdentifier": "ds_delivery",
+              "ColumnName": "production_at"
+            },
+            "AnchorDateConfiguration": {
+              "AnchorOption": "NOW"
+            },
+            "TimeGranularity": "MONTH",
+            "RelativeDateType": "LAST",
+            "RelativeDateValue": 12,
+            "NullOption": "NON_NULLS_ONLY"
+          }
+        }
+      ],
+      "ScopeConfiguration": {
+        "SelectedSheets": {
+          "SheetVisualScopingConfigurations": [
+            {
+              "SheetId": "executive",
+              "Scope": "SELECTED_VISUALS",
+              "VisualIds": [
+                "exec-vendor-trend"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "FilterGroupId": "fg-cycle-vendor_name",
+      "CrossDataset": "SINGLE_DATASET",
+      "Status": "ENABLED",
+      "Filters": [
+        {
+          "CategoryFilter": {
+            "FilterId": "f-cycle-vendor_name",
+            "Column": {
+              "DataSetIdentifier": "ds_delivery",
+              "ColumnName": "vendor_name"
+            },
+            "Configuration": {
+              "FilterListConfiguration": {
+                "MatchOperator": "CONTAINS",
+                "SelectAllOptions": "FILTER_ALL_VALUES"
+              }
+            }
+          }
+        }
+      ],
+      "ScopeConfiguration": {
+        "SelectedSheets": {
+          "SheetVisualScopingConfigurations": [
+            {
+              "SheetId": "cycle-time",
+              "Scope": "ALL_VISUALS"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "FilterGroupId": "fg-cycle-site_code",
+      "CrossDataset": "SINGLE_DATASET",
+      "Status": "ENABLED",
+      "Filters": [
+        {
+          "CategoryFilter": {
+            "FilterId": "f-cycle-site_code",
+            "Column": {
+              "DataSetIdentifier": "ds_delivery",
+              "ColumnName": "site_code"
+            },
+            "Configuration": {
+              "FilterListConfiguration": {
+                "MatchOperator": "CONTAINS",
+                "SelectAllOptions": "FILTER_ALL_VALUES"
+              }
+            }
+          }
+        }
+      ],
+      "ScopeConfiguration": {
+        "SelectedSheets": {
+          "SheetVisualScopingConfigurations": [
+            {
+              "SheetId": "cycle-time",
+              "Scope": "ALL_VISUALS"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "FilterGroupId": "fg-cycle-rack_type_description",
+      "CrossDataset": "SINGLE_DATASET",
+      "Status": "ENABLED",
+      "Filters": [
+        {
+          "CategoryFilter": {
+            "FilterId": "f-cycle-rack_type_description",
+            "Column": {
+              "DataSetIdentifier": "ds_delivery",
+              "ColumnName": "rack_type_description"
+            },
+            "Configuration": {
+              "FilterListConfiguration": {
+                "MatchOperator": "CONTAINS",
+                "SelectAllOptions": "FILTER_ALL_VALUES"
+              }
+            }
+          }
+        }
+      ],
+      "ScopeConfiguration": {
+        "SelectedSheets": {
+          "SheetVisualScopingConfigurations": [
+            {
+              "SheetId": "cycle-time",
+              "Scope": "ALL_VISUALS"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "FilterGroupId": "fg-cycle-order-month",
+      "CrossDataset": "SINGLE_DATASET",
+      "Status": "ENABLED",
+      "Filters": [
+        {
+          "TimeRangeFilter": {
+            "FilterId": "f-cycle-order-month",
+            "Column": {
+              "DataSetIdentifier": "ds_delivery",
+              "ColumnName": "ordered_at"
+            },
+            "NullOption": "NON_NULLS_ONLY",
+            "TimeGranularity": "MONTH"
+          }
+        }
+      ],
+      "ScopeConfiguration": {
+        "SelectedSheets": {
+          "SheetVisualScopingConfigurations": [
+            {
+              "SheetId": "cycle-time",
+              "Scope": "ALL_VISUALS"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "FilterGroupId": "fg-overdue-only",
+      "CrossDataset": "SINGLE_DATASET",
+      "Status": "ENABLED",
+      "Filters": [
+        {
+          "NumericEqualityFilter": {
+            "FilterId": "f-overdue-only",
+            "Column": {
+              "DataSetIdentifier": "ds_delivery",
+              "ColumnName": "is_overdue_open"
+            },
+            "Value": 1,
+            "MatchOperator": "EQUALS",
+            "NullOption": "NON_NULLS_ONLY"
+          }
+        }
+      ],
+      "ScopeConfiguration": {
+        "SelectedSheets": {
+          "SheetVisualScopingConfigurations": [
+            {
+              "SheetId": "sla-breaches",
+              "Scope": "SELECTED_VISUALS",
+              "VisualIds": [
+                "sla-overdue"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "FilterGroupId": "fg-last-run",
+      "CrossDataset": "SINGLE_DATASET",
+      "Status": "ENABLED",
+      "Filters": [
+        {
+          "TopBottomFilter": {
+            "FilterId": "f-last-run",
+            "Column": {
+              "DataSetIdentifier": "ds_pipeline_health",
+              "ColumnName": "run_id"
+            },
+            "Limit": 1,
+            "AggregationSortConfigurations": [
+              {
+                "Column": {
+                  "DataSetIdentifier": "ds_pipeline_health",
+                  "ColumnName": "started_at"
+                },
+                "SortDirection": "DESC",
+                "AggregationFunction": {
+                  "DateAggregationFunction": "MAX"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "ScopeConfiguration": {
+        "SelectedSheets": {
+          "SheetVisualScopingConfigurations": [
+            {
+              "SheetId": "pipeline-health",
+              "Scope": "SELECTED_VISUALS",
+              "VisualIds": [
+                "health-last-run"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "FilterGroupId": "fg-last-14",
+      "CrossDataset": "SINGLE_DATASET",
+      "Status": "ENABLED",
+      "Filters": [
+        {
+          "TopBottomFilter": {
+            "FilterId": "f-last-14",
+            "Column": {
+              "DataSetIdentifier": "ds_pipeline_health",
+              "ColumnName": "run_id"
+            },
+            "Limit": 14,
+            "AggregationSortConfigurations": [
+              {
+                "Column": {
+                  "DataSetIdentifier": "ds_pipeline_health",
+                  "ColumnName": "started_at"
+                },
+                "SortDirection": "DESC",
+                "AggregationFunction": {
+                  "DateAggregationFunction": "MAX"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "ScopeConfiguration": {
+        "SelectedSheets": {
+          "SheetVisualScopingConfigurations": [
+            {
+              "SheetId": "pipeline-health",
+              "Scope": "SELECTED_VISUALS",
+              "VisualIds": [
+                "health-runs"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "AnalysisDefaults": {
+    "DefaultNewSheetConfiguration": {
+      "InteractiveLayoutConfiguration": {
+        "Grid": {
+          "CanvasSizeOptions": {
+            "ScreenCanvasSizeOptions": {
+              "ResizeOption": "FIXED",
+              "OptimizedViewPortWidth": "1600px"
+            }
+          }
+        }
+      },
+      "SheetContentType": "INTERACTIVE"
+    }
+  }
+}
