@@ -11,6 +11,7 @@
     config(
         materialized='incremental',
         incremental_strategy=incremental_strategy(),
+        on_schema_change='fail',
         unique_key='rack_sk',
         sort='ordered_at',
         dist='auto',
@@ -74,7 +75,7 @@ milestones as (
         {%- for status, column in milestones.items() %}
             min(case when status = '{{ status }}' then event_at end) as {{ column }},
         {%- endfor %}
-        sum(case when is_regression then 1 else 0 end) as regression_count,
+        cast(sum(case when is_regression then 1 else 0 end) as integer) as regression_count,
         max(event_at) as last_event_at,
         max(_ingest_date) as _last_ingest_date
     from events

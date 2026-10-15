@@ -1,20 +1,50 @@
+# Every mart has an enforced contract (dbt_project.yml): each column is listed here with an
+# explicit data_type, and dbt fails the build if the model's columns or types drift.
+# Types are written so they mean the same on DuckDB and Redshift.
+
 models:
   - name: dim_date
     description: Calendar from 2023-01-01 to 2028-12-31. Fiscal columns follow var fiscal_year_start_month.
+    constraints:
+      - type: primary_key
+        columns: [date_sk]
     columns:
       - name: date_sk
+        data_type: integer
         description: YYYYMMDD integer key.
-        data_tests: [unique, not_null]
+        constraints: [{type: not_null}]
+        data_tests: [unique]
       - name: date
+        data_type: date
         description: Calendar date.
-        data_tests: [unique, not_null]
-      - name: day_of_week
-        description: 0 = Sunday ... 6 = Saturday.
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: year
+        data_type: integer
+        description: Calendar year.
+      - name: quarter
+        data_type: integer
+        description: Calendar quarter, 1 to 4.
+      - name: month
+        data_type: integer
+        description: Calendar month, 1 to 12.
+      - name: month_name
+        data_type: varchar
+        description: January ... December.
       - name: iso_week
+        data_type: integer
         description: ISO 8601 week number.
+      - name: day_of_week
+        data_type: integer
+        description: 0 = Sunday ... 6 = Saturday.
+      - name: is_weekend
+        data_type: boolean
+        description: Saturday or Sunday.
       - name: fiscal_year
+        data_type: integer
         description: Fiscal year, named for the calendar year it ends in.
       - name: fiscal_quarter
+        data_type: integer
         description: Fiscal quarter, 1 to 4.
         data_tests:
           - accepted_values:
@@ -24,53 +54,105 @@ models:
 
   - name: dim_site
     description: Data center sites (SCD1).
+    constraints:
+      - type: primary_key
+        columns: [site_sk]
     columns:
       - name: site_sk
+        data_type: varchar
         description: Surrogate key.
-        data_tests: [unique, not_null]
+        constraints: [{type: not_null}]
+        data_tests: [unique]
       - name: site_code
-        description: Natural key.
-        data_tests: [unique, not_null]
+        data_type: varchar
+        description: Natural key, e.g. SEA-01.
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: site_name
+        data_type: varchar
+        description: Display name.
       - name: site_region
-        description: us-west, us-east, eu-central or ap-south.
+        data_type: varchar
+        description: us-west, us-east, eu-central or ap-south; drives row-level security.
+        constraints: [{type: not_null}]
+      - name: country
+        data_type: varchar
+        description: ISO country code.
+      - name: capacity_racks
+        data_type: integer
+        description: Rack positions at the site.
+      - name: opened_date
+        data_type: date
+        description: Date the site opened.
 
   - name: dim_rack_type
     description: Rack types (SCD1).
+    constraints:
+      - type: primary_key
+        columns: [rack_type_sk]
     columns:
       - name: rack_type_sk
+        data_type: varchar
         description: Surrogate key.
-        data_tests: [unique, not_null]
+        constraints: [{type: not_null}]
+        data_tests: [unique]
       - name: rack_type_code
-        description: Natural key.
-        data_tests: [unique, not_null]
+        data_type: varchar
+        description: Natural key, e.g. GPU-8X.
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: description
+        data_type: varchar
+        description: Display description.
+      - name: power_kw
+        data_type: integer
+        description: Rated power draw.
       - name: is_gpu
+        data_type: boolean
         description: GPU rack types have twice the burn-in time.
+        constraints: [{type: not_null}]
 
   - name: dim_vendor
     description: >
       Vendor contracts as SCD2, one row per version (from snap_vendor_contracts). Join as of a
       date with valid_from <= date < valid_to.
+    constraints:
+      - type: primary_key
+        columns: [vendor_sk]
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [vendor_code, valid_from]
     columns:
       - name: vendor_sk
-        description: Surrogate key of the version.
-        data_tests: [unique, not_null]
+        data_type: varchar
+        description: Surrogate key of the contract version.
+        constraints: [{type: not_null}]
+        data_tests: [unique]
       - name: vendor_code
-        description: Natural key.
-        data_tests: [not_null]
+        data_type: varchar
+        description: Natural key, e.g. V03.
+        constraints: [{type: not_null}]
+      - name: vendor_name
+        data_type: varchar
+        description: Display name.
       - name: sla_days_order_to_production
-        description: SLA in days under this version.
-        data_tests: [not_null]
+        data_type: integer
+        description: SLA in days from order to production under this version.
+        constraints: [{type: not_null}]
       - name: contract_tier
+        data_type: varchar
         description: gold, silver or bronze.
       - name: valid_from
+        data_type: timestamp
         description: First date the version applied.
+        constraints: [{type: not_null}]
       - name: valid_to
+        data_type: timestamp
         description: Date the next version started; 9999-12-31 for the current one.
+        constraints: [{type: not_null}]
       - name: is_current
+        data_type: boolean
         description: The version in effect now.
 
   - name: fct_rack_status_event
@@ -78,25 +160,26 @@ models:
       Transaction fact, one row per valid status change. vendor_sk is the contract version in
       effect at event_at. Incremental (merge on event_sk), recomputing racks with events in the
       lookback window.
+    constraints:
+      - type: primary_key
+        columns: [event_sk]
     columns:
       - name: event_sk
+        data_type: varchar
         description: Surrogate key of the event.
-        data_tests: [unique, not_null]
+        constraints: [{type: not_null}]
+        data_tests: [unique]
       - name: event_id
+        data_type: varchar
         description: Source event UUID.
-        data_tests: [unique, not_null]
+        constraints: [{type: not_null}]
+        data_tests: [unique]
       - name: rack_id
+        data_type: varchar
         description: Natural rack key.
-        data_tests: [not_null]
-      - name: site_sk
-        description: Site at the time of the event.
-        data_tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_site')
-                field: site_sk
+        constraints: [{type: not_null}]
       - name: rack_type_sk
+        data_type: varchar
         description: Rack type.
         data_tests:
           - not_null
@@ -104,41 +187,8 @@ models:
               arguments:
                 to: ref('dim_rack_type')
                 field: rack_type_sk
-      - name: vendor_sk
-        description: Vendor contract version in effect at event_at.
-        data_tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_vendor')
-                field: vendor_sk
-      - name: event_date_sk
-        description: Event date key.
-        data_tests:
-          - relationships:
-              arguments:
-                to: ref('dim_date')
-                field: date_sk
-      - name: hours_since_prev_event
-        description: Hours since the rack's previous valid event (LAG).
-      - name: is_regression
-        description: Valid backward transition (failed burn-in).
-      - name: late_by_days
-        description: Days between the event and the ingest date it arrived in.
-
-  - name: fct_rack_delivery
-    description: >
-      Accumulating snapshot fact, one row per rack: first-reached milestone timestamps, stage
-      durations, current status and SLA status (judged against the contract version in effect
-      at ordered_at). Incremental (merge on rack_sk).
-    columns:
-      - name: rack_sk
-        description: Surrogate key of the rack.
-        data_tests: [unique, not_null]
-      - name: rack_id
-        description: Natural rack key; exactly one row per rack.
-        data_tests: [unique, not_null]
       - name: site_sk
+        data_type: varchar
         description: Site.
         data_tests:
           - not_null
@@ -147,6 +197,79 @@ models:
                 to: ref('dim_site')
                 field: site_sk
       - name: vendor_sk
+        data_type: varchar
+        description: Vendor contract version in effect at event_at.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendor')
+                field: vendor_sk
+      - name: event_date_sk
+        data_type: integer
+        description: Event date key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_sk
+      - name: status
+        data_type: varchar
+        description: Lifecycle status entered.
+        constraints: [{type: not_null}]
+      - name: prev_status
+        data_type: varchar
+        description: Previous valid status; null for the rack's first event.
+      - name: event_at
+        data_type: timestamp
+        description: When the status changed, UTC.
+        constraints: [{type: not_null}]
+      - name: hours_since_prev_event
+        data_type: decimal(10,2)
+        description: Hours since the rack's previous valid event (LAG).
+      - name: is_regression
+        data_type: boolean
+        description: Valid backward transition (failed burn-in).
+      - name: late_by_days
+        data_type: bigint
+        description: Days between the event and the ingest date it arrived in.
+      - name: _ingest_date
+        data_type: date
+        description: Landing partition the event arrived in.
+      - name: _run_id
+        data_type: varchar
+        description: Load run of the event.
+
+  - name: fct_rack_delivery
+    description: >
+      Accumulating snapshot fact, one row per rack: first-reached milestone timestamps, stage
+      durations, current status and SLA status (judged against the contract version in effect
+      at ordered_at). Incremental (merge on rack_sk).
+    constraints:
+      - type: primary_key
+        columns: [rack_sk]
+    columns:
+      - name: rack_sk
+        data_type: varchar
+        description: Surrogate key of the rack.
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: rack_id
+        data_type: varchar
+        description: Natural rack key; exactly one row per rack.
+        constraints: [{type: not_null}]
+        data_tests: [unique]
+      - name: site_sk
+        data_type: varchar
+        description: Site.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_site')
+                field: site_sk
+      - name: vendor_sk
+        data_type: varchar
         description: Vendor contract version in effect at ordered_at; null if the ORDERED event was quarantined.
         data_tests:
           - relationships:
@@ -154,44 +277,103 @@ models:
                 to: ref('dim_vendor')
                 field: vendor_sk
       - name: rack_type_sk
+        data_type: varchar
         description: Rack type.
         data_tests: [not_null]
+      - name: ordered_date_sk
+        data_type: integer
+        description: Order date key.
+      - name: production_date_sk
+        data_type: integer
+        description: Production date key; null while not in production.
+      - name: ordered_at
+        data_type: timestamp
+        description: First ORDERED event.
+      - name: vendor_confirmed_at
+        data_type: timestamp
+        description: First VENDOR_CONFIRMED event.
+      - name: shipped_at
+        data_type: timestamp
+        description: First SHIPPED event.
+      - name: received_at
+        data_type: timestamp
+        description: First RECEIVED event.
+      - name: racked_at
+        data_type: timestamp
+        description: First RACKED event.
+      - name: cabled_at
+        data_type: timestamp
+        description: First CABLED event.
+      - name: burn_in_started_at
+        data_type: timestamp
+        description: First BURN_IN event.
       - name: production_at
-        description: First time the rack reached PRODUCTION.
+        data_type: timestamp
+        description: First time the rack reached PRODUCTION. Completed means this is not null.
+      - name: decommission_requested_at
+        data_type: timestamp
+        description: First DECOMMISSION_REQUESTED event.
+      - name: decommissioned_at
+        data_type: timestamp
+        description: First DECOMMISSIONED event.
       - name: vendor_lead_hours
+        data_type: decimal(10,2)
         description: ORDERED to SHIPPED.
         data_tests: &non_negative
           - dbt_expectations.expect_column_values_to_be_between:
               arguments:
                 min_value: 0
       - name: transit_hours
+        data_type: decimal(10,2)
         description: SHIPPED to RECEIVED.
         data_tests: *non_negative
       - name: install_hours
+        data_type: decimal(10,2)
         description: RECEIVED to CABLED.
         data_tests: *non_negative
       - name: burn_in_hours
+        data_type: decimal(10,2)
         description: CABLED to PRODUCTION.
         data_tests: *non_negative
       - name: end_to_end_hours
+        data_type: decimal(10,2)
         description: ORDERED to PRODUCTION.
         data_tests: *non_negative
       - name: current_status
+        data_type: varchar
         description: Status of the rack's latest valid event.
-        data_tests: [not_null]
+        constraints: [{type: not_null}]
+      - name: current_status_since
+        data_type: timestamp
+        description: When the rack entered its current status.
       - name: days_in_current_status
+        data_type: bigint
         description: Days since current_status_since, computed at build time.
+      - name: sla_days
+        data_type: integer
+        description: SLA days of the contract version in effect at ordered_at.
       - name: sla_due_at
-        description: ordered_at plus the SLA days of the contract version in effect then.
+        data_type: timestamp
+        description: ordered_at plus sla_days.
       - name: is_sla_breached
+        data_type: boolean
         description: production_at > sla_due_at; false while not in production.
-        data_tests: [not_null]
+        constraints: [{type: not_null}]
       - name: is_overdue_open
+        data_type: boolean
         description: Not in production, not decommissioned, and past sla_due_at now.
-        data_tests: [not_null]
+        constraints: [{type: not_null}]
       - name: regression_count
+        data_type: integer
         description: Valid backward transitions.
+      - name: last_event_at
+        data_type: timestamp
+        description: Latest valid event of the rack.
+      - name: _updated_run_id
+        data_type: varchar
+        description: Run that last recomputed the row.
       - name: _last_ingest_date
+        data_type: date
         description: Latest ingest date among the rack's events; drives the incremental lookback.
 
   - name: agg_cycle_time_monthly
@@ -201,13 +383,34 @@ models:
           arguments:
             combination_of_columns: [month, vendor_code, site_code, stage]
     columns:
+      - name: month
+        data_type: date
+        description: Month the stage ended.
+        constraints: [{type: not_null}]
+      - name: vendor_code
+        data_type: varchar
+        description: Vendor.
+      - name: site_code
+        data_type: varchar
+        description: Site.
       - name: stage
+        data_type: varchar
         description: vendor_lead, transit, install, burn_in or end_to_end.
         data_tests:
           - accepted_values:
               arguments:
                 values: [vendor_lead, transit, install, burn_in, end_to_end]
+      - name: p50_hours
+        data_type: double precision
+        description: Median stage duration.
+      - name: p90_hours
+        data_type: double precision
+        description: 90th percentile stage duration.
+      - name: mean_hours
+        data_type: double precision
+        description: Mean stage duration.
       - name: rack_count
+        data_type: bigint
         description: Racks in the group.
 
   - name: agg_daily_throughput
@@ -217,12 +420,23 @@ models:
           arguments:
             combination_of_columns: [date, site_code]
     columns:
+      - name: date
+        data_type: date
+        description: Calendar day.
+        constraints: [{type: not_null}]
+      - name: site_code
+        data_type: varchar
+        description: Site.
+        constraints: [{type: not_null}]
       - name: racks_to_production
+        data_type: bigint
         description: Racks reaching production that day.
-        data_tests: [not_null]
+        constraints: [{type: not_null}]
       - name: racks_to_production_7d_avg
+        data_type: double precision
         description: Moving average over the day and the 6 before.
       - name: open_wip
+        data_type: bigint
         description: Racks ordered and not yet in production at the end of the day.
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:
@@ -236,7 +450,22 @@ models:
           arguments:
             combination_of_columns: [month, vendor_code]
     columns:
+      - name: month
+        data_type: date
+        description: Production month.
+        constraints: [{type: not_null}]
+      - name: vendor_code
+        data_type: varchar
+        description: Vendor.
+        constraints: [{type: not_null}]
+      - name: racks_completed
+        data_type: bigint
+        description: Racks reaching production in the month.
+      - name: on_time
+        data_type: bigint
+        description: Of those, racks within SLA.
       - name: on_time_pct
+        data_type: double precision
         description: on_time / racks_completed (pooled).
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:

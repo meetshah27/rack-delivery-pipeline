@@ -1,0 +1,173 @@
+# The 12 governed metrics, translated exactly from metric-layer-nlq/docs/METRICS.md
+# (approved). This file is the single definition of each metric; the metric dictionary is
+# generated from it. meta carries the governance columns of METRICS.md.
+# "Completed" means production_at is not null.
+
+metrics:
+  - name: racks_ordered
+    label: Racks ordered
+    description: Racks with an order placed.
+    type: simple
+    type_params: {measure: ordered_racks}
+    config:
+      meta: &daily_0800
+        formula: count(rack_id)
+        time_anchor: ordered_at
+        grain: day
+        source_model: fct_rack_delivery
+        owner: Meet
+        refresh_sla: Daily 08:00 UTC
+        exclusions: none
+
+  - name: racks_to_production
+    label: Racks to production
+    description: Racks reaching production.
+    type: simple
+    type_params: {measure: completed_racks}
+    config:
+      meta:
+        <<: *daily_0800
+        formula: count(rack_id) where production_at is not null
+        time_anchor: production_at
+
+  - name: on_time_delivery_rate
+    label: On-time delivery rate
+    description: Share of completed racks reaching production by their SLA due date.
+    type: ratio
+    type_params:
+      numerator: racks_on_time
+      denominator: racks_to_production
+    config:
+      meta: &daily
+        formula: racks_on_time / racks_to_production
+        time_anchor: production_at
+        grain: month
+        source_model: fct_rack_delivery
+        owner: Meet
+        refresh_sla: Daily
+        exclusions: decommissioned before production (already excluded because production_at is null)
+
+  - name: racks_on_time
+    label: Racks on time
+    description: Completed racks with production_at <= sla_due_at.
+    type: simple
+    type_params: {measure: on_time_racks}
+    config:
+      meta:
+        <<: *daily
+        formula: count where not is_sla_breached and production_at is not null
+        grain: day
+
+  - name: p50_end_to_end_days
+    label: Median end-to-end days
+    description: Median order-to-production days.
+    type: simple
+    type_params: {measure: end_to_end_days_median}
+    config:
+      meta:
+        <<: *daily
+        formula: percentile_cont(0.5) of end_to_end_hours / 24
+        exclusions: none
+
+  - name: p90_end_to_end_days
+    label: p90 end-to-end days
+    description: 90th percentile order-to-production days.
+    type: simple
+    type_params: {measure: end_to_end_days_90th}
+    config:
+      meta:
+        <<: *daily
+        formula: percentile_cont(0.9) of end_to_end_hours / 24
+        exclusions: none
+
+  - name: avg_vendor_lead_days
+    label: Average vendor lead days
+    description: Mean ORDERED to SHIPPED days.
+    type: simple
+    type_params: {measure: vendor_lead_days_mean}
+    config:
+      meta:
+        <<: *daily
+        formula: avg(vendor_lead_hours) / 24
+        time_anchor: shipped_at
+        exclusions: none
+
+  - name: avg_install_days
+    label: Average install days
+    description: Mean RECEIVED to CABLED days.
+    type: simple
+    type_params: {measure: install_days_mean}
+    config:
+      meta:
+        <<: *daily
+        formula: avg(install_hours) / 24
+        time_anchor: cabled_at
+        exclusions: none
+
+  - name: racks_in_flight
+    label: Racks in flight
+    description: Racks ordered and not yet in production (point in time).
+    type: simple
+    type_params: {measure: in_flight_racks}
+    config:
+      meta:
+        <<: *daily
+        formula: count where production_at is null and decommissioned_at is null
+        time_anchor: snapshot date (current state; metric_time splits by ordered_at)
+        grain: day
+        exclusions: none
+
+  - name: overdue_open_racks
+    label: Overdue open racks
+    description: In-flight racks past their SLA due date.
+    type: simple
+    type_params: {measure: overdue_open_racks_count}
+    config:
+      meta:
+        <<: *daily
+        formula: count where is_overdue_open
+        time_anchor: snapshot date (current state; metric_time splits by ordered_at)
+        grain: day
+        exclusions: none
+
+  - name: sla_breach_count
+    label: SLA breaches
+    description: Completed racks that missed SLA.
+    type: simple
+    type_params: {measure: breached_racks}
+    config:
+      meta:
+        <<: *daily
+        formula: count where is_sla_breached and production_at is not null
+        grain: day
+        exclusions: none
+
+  - name: burn_in_regression_rate
+    label: Burn-in regression rate
+    description: >
+      Share of completed racks with at least one status regression (the simulator only
+      produces BURN_IN to CABLED regressions, so in practice this is burn-in failures).
+    type: ratio
+    type_params:
+      numerator: racks_with_regression
+      denominator: racks_to_production
+    config:
+      meta:
+        <<: *daily
+        formula: count(regression_count > 0) / racks_to_production
+        exclusions: none
+
+  # Numerator of burn_in_regression_rate. Not in METRICS.md as its own row: a ratio metric
+  # can only reference metrics, so the numerator needs one.
+  - name: racks_with_regression
+    label: Racks with a regression
+    description: Completed racks with at least one status regression.
+    type: simple
+    type_params: {measure: regressed_racks}
+    config:
+      meta:
+        <<: *daily
+        formula: count where regression_count > 0 and production_at is not null
+        grain: day
+        exclusions: none
+        component_of: burn_in_regression_rate

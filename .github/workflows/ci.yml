@@ -21,6 +21,8 @@ jobs:
         run: make sim DAYS=60
       - name: dbt build (local)
         run: make dbt-local
+      - name: Semantic layer (MetricFlow)
+        run: make mf-validate
       - name: Pytest, dbt test, sqlfluff
         run: make test
       - name: Backfill is idempotent

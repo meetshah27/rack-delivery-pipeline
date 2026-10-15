@@ -71,26 +71,38 @@ daily as (
     left join completed
         on grid.site_sk = completed.site_sk and grid.date = completed.date
 
+),
+
+running as (
+
+    select
+        date,
+        site_code,
+        racks_to_production,
+        -- cast first: Redshift's avg over an integer returns a truncated integer
+        avg(cast(racks_to_production as double precision)) over (
+            partition by site_code
+            order by date
+            rows between 6 preceding and current row
+        ) as racks_to_production_7d_avg,
+        sum(racks_ordered) over (
+            partition by site_code
+            order by date
+            rows between unbounded preceding and current row
+        ) as cumulative_ordered,
+        sum(racks_to_production) over (
+            partition by site_code
+            order by date
+            rows between unbounded preceding and current row
+        ) as cumulative_completed
+    from daily
+
 )
 
 select
     date,
     site_code,
     racks_to_production,
-    avg(racks_to_production) over (
-        partition by site_code
-        order by date
-        rows between 6 preceding and current row
-    ) as racks_to_production_7d_avg,
-    sum(racks_ordered)
-        over (
-            partition by site_code
-            order by date
-            rows between unbounded preceding and current row
-        )
-    - sum(racks_to_production) over (
-        partition by site_code
-        order by date
-        rows between unbounded preceding and current row
-    ) as open_wip
-from daily
+    racks_to_production_7d_avg,
+    cast(cumulative_ordered - cumulative_completed as bigint) as open_wip
+from running

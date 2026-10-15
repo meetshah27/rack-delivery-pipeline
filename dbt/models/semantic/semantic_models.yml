@@ -1,0 +1,153 @@
+# Semantic models for the governed metrics in metrics.yml. Used by the metric-layer-nlq
+# repo, which reads the compiled semantic_manifest.json.
+
+models:
+  - name: metricflow_time_spine
+    description: One row per day, the grain of metric_time.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        description: Calendar day.
+        granularity: day
+        data_tests: [unique, not_null]
+
+semantic_models:
+  - name: rack_delivery
+    description: One row per rack (fct_rack_delivery). Source of every delivery metric.
+    model: ref('fct_rack_delivery')
+    defaults:
+      agg_time_dimension: production_at
+    entities:
+      - name: rack
+        type: primary
+        expr: rack_sk
+      - name: vendor
+        type: foreign
+        expr: vendor_sk
+      - name: site
+        type: foreign
+        expr: site_sk
+      - name: rack_type
+        type: foreign
+        expr: rack_type_sk
+    dimensions:
+      - name: ordered_at
+        type: time
+        type_params: {time_granularity: day}
+      - name: shipped_at
+        type: time
+        type_params: {time_granularity: day}
+      - name: cabled_at
+        type: time
+        type_params: {time_granularity: day}
+      - name: production_at
+        type: time
+        type_params: {time_granularity: day}
+      - name: current_status
+        type: categorical
+    measures:
+      - name: ordered_racks
+        description: Racks with an order placed.
+        agg: count
+        expr: rack_id
+        agg_time_dimension: ordered_at
+      - name: completed_racks
+        description: Racks that reached production.
+        agg: sum
+        expr: "case when production_at is not null then 1 else 0 end"
+      - name: on_time_racks
+        description: Completed racks with production_at <= sla_due_at.
+        agg: sum
+        expr: "case when production_at is not null and not is_sla_breached then 1 else 0 end"
+      - name: breached_racks
+        description: Completed racks that missed their SLA.
+        agg: sum
+        expr: "case when production_at is not null and is_sla_breached then 1 else 0 end"
+      - name: regressed_racks
+        description: Completed racks with at least one status regression.
+        agg: sum
+        expr: "case when production_at is not null and regression_count > 0 then 1 else 0 end"
+      - name: end_to_end_days_median
+        description: Median order-to-production days.
+        agg: percentile
+        expr: end_to_end_hours / 24.0
+        agg_params:
+          percentile: 0.5
+          use_discrete_percentile: false
+      - name: end_to_end_days_90th
+        description: 90th percentile order-to-production days.
+        agg: percentile
+        expr: end_to_end_hours / 24.0
+        agg_params:
+          percentile: 0.9
+          use_discrete_percentile: false
+      - name: vendor_lead_days_mean
+        description: Mean ORDERED to SHIPPED days.
+        agg: average
+        expr: vendor_lead_hours / 24.0
+        agg_time_dimension: shipped_at
+      - name: install_days_mean
+        description: Mean RECEIVED to CABLED days.
+        agg: average
+        expr: install_hours / 24.0
+        agg_time_dimension: cabled_at
+      # Point in time: the current state of each rack. Anchored on ordered_at only because
+      # MetricFlow requires a time dimension; grouping by metric_time splits by order date.
+      - name: in_flight_racks
+        description: Racks ordered and not yet in production or decommissioned (current state).
+        agg: sum
+        expr: "case when production_at is null and decommissioned_at is null then 1 else 0 end"
+        agg_time_dimension: ordered_at
+      - name: overdue_open_racks_count
+        description: In-flight racks past their SLA due date (current state).
+        agg: sum
+        expr: "case when is_overdue_open then 1 else 0 end"
+        agg_time_dimension: ordered_at
+
+  - name: vendor
+    description: Vendor contract versions (SCD2). The fact's vendor_sk is already the version in effect at ordered_at.
+    model: ref('dim_vendor')
+    entities:
+      - name: vendor
+        type: primary
+        expr: vendor_sk
+    dimensions:
+      - name: vendor_code
+        type: categorical
+      - name: vendor_name
+        type: categorical
+      - name: contract_tier
+        type: categorical
+      - name: sla_days_order_to_production
+        type: categorical
+
+  - name: site
+    description: Data center sites.
+    model: ref('dim_site')
+    entities:
+      - name: site
+        type: primary
+        expr: site_sk
+    dimensions:
+      - name: site_code
+        type: categorical
+      - name: site_name
+        type: categorical
+      - name: site_region
+        type: categorical
+
+  - name: rack_type
+    description: Rack types.
+    model: ref('dim_rack_type')
+    entities:
+      - name: rack_type
+        type: primary
+        expr: rack_type_sk
+    dimensions:
+      - name: rack_type_code
+        type: categorical
+      - name: description
+        type: categorical
+      - name: is_gpu
+        type: categorical

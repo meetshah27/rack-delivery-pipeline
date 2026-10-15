@@ -112,6 +112,8 @@ The star schema has two facts at different grains sharing conformed dimensions:
 
 **Incremental facts.** Both facts recompute whole racks rather than single events: every rack with an event ingested in the last 14 days, or in `[start_date, end_date]` for a backfill. A late event can change the previous status and the durations of events already loaded, so the whole rack is recomputed. `fct_rack_delivery` also recomputes every open rack each run, because its overdue flag moves with the clock. Facts use `merge` on Redshift and `delete+insert` on DuckDB, chosen by an adapter-dispatched macro.
 
+**Contracts and the semantic layer.** Every mart has an enforced dbt model contract: each column is declared with an explicit type, written so it means the same on DuckDB and Redshift, and a breaking change fails the build before the table is replaced. On top of the marts, `dbt/models/semantic/` defines the 12 governed KPIs (on-time delivery rate, p90 end-to-end days, overdue open racks, ...) in the dbt Semantic Layer (MetricFlow). `make mf-validate` checks them, including a run of every metric against the warehouse. They are the single definition of each metric, and the grounding for the natural-language query service in [metric-layer-nlq](https://github.com/meetshah27/metric-layer-nlq).
+
 Full design: [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
 
 ## Correctness checks

@@ -3,6 +3,7 @@
     config(
         materialized='incremental',
         incremental_strategy=incremental_strategy(),
+        on_schema_change='fail',
         unique_key='event_sk',
         sort='event_at',
         dist='auto',

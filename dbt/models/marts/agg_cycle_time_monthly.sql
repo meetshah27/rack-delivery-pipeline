@@ -32,9 +32,13 @@ select
     vendors.vendor_code,
     sites.site_code,
     stages.stage,
-    percentile_cont(0.5) within group (order by stages.stage_hours) as p50_hours,
-    percentile_cont(0.9) within group (order by stages.stage_hours) as p90_hours,
-    avg(stages.stage_hours) as mean_hours,
+    cast(
+        percentile_cont(0.5) within group (order by stages.stage_hours) as double precision
+    ) as p50_hours,
+    cast(
+        percentile_cont(0.9) within group (order by stages.stage_hours) as double precision
+    ) as p90_hours,
+    avg(cast(stages.stage_hours as double precision)) as mean_hours,
     count(*) as rack_count
 from stages
 inner join {{ ref('dim_vendor') }} as vendors

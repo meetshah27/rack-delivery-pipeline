@@ -34,8 +34,14 @@ models:
     marts:
       +schema: marts
       +materialized: table
+      # breaking column or type changes fail the build (models/marts/_marts.yml)
+      +contract:
+        enforced: true
     ops:
       +schema: ops
+      +materialized: table
+    semantic:
+      +schema: marts
       +materialized: table
 
 seeds:

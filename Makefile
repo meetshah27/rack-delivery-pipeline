@@ -11,7 +11,7 @@ define not_implemented
 endef
 
 .PHONY: setup lint typecheck test sim land-local dbt-deps tf-plan tf-apply upload dbt-local dbt-build \
-	schedule-on schedule-off evidence backfill ground-truth cost qs-deploy qs-snapshot teardown
+	schedule-on schedule-off evidence backfill ground-truth mf-validate cost qs-deploy qs-snapshot teardown
 
 setup:
 	uv sync
@@ -68,6 +68,11 @@ backfill:
 
 ground-truth:
 	uv run python -m ops.ground_truth --target $(TARGET)
+
+# Semantic layer (models/semantic): YAML, semantics, and every metric against the warehouse.
+# PYTHONUTF8 keeps mf's progress spinner from failing on Windows consoles.
+mf-validate:
+	cd dbt && PYTHONUTF8=1 uv run mf validate-configs
 
 schedule-on schedule-off cost:
 	$(call not_implemented,Phase 6)
