@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Rack lifecycle analytics pipeline: simulator, S3, Redshift Serverless, dbt, Step Functions, QuickSight."
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "dbt-core>=1.8",
+    "dbt-duckdb>=1.8",
+    "dbt-redshift>=1.8",
     "numpy>=2.0",
     "pyarrow>=17",
     "pyyaml>=6.0",
@@ -16,6 +19,7 @@ dev = [
     "pytest>=8.3",
     "ruff>=0.6",
     "sqlfluff>=3.1",
+    "sqlfluff-templater-dbt>=3.1",
     "types-pyyaml>=6.0",
 ]
 

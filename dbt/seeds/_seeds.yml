@@ -1,0 +1,24 @@
+seeds:
+  - name: status_transitions
+    description: >
+      Allowed rack status transitions. START is the pseudo status before a rack's first event.
+      Any transition not listed is a data quality failure and the event is quarantined.
+    config:
+      column_types:
+        from_status: varchar(30)
+        to_status: varchar(30)
+        is_regression: boolean
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [from_status, to_status]
+    columns:
+      - name: from_status
+        description: Status before the transition, or START.
+        data_tests: [not_null]
+      - name: to_status
+        description: Status after the transition.
+        data_tests: [not_null]
+      - name: is_regression
+        description: True for legitimate backward moves (failed burn-in back to CABLED).
+        data_tests: [not_null]

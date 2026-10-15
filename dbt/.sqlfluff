@@ -1,0 +1,28 @@
+[sqlfluff]
+dialect = redshift
+templater = dbt
+max_line_length = 100
+
+[sqlfluff:templater:dbt]
+project_dir = .
+profiles_dir = .
+target = local
+
+[sqlfluff:indentation]
+tab_space_size = 4
+indented_joins = false
+
+[sqlfluff:layout:type:comma]
+line_position = trailing
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.types]
+extended_capitalisation_policy = lower

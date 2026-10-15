@@ -1,0 +1,22 @@
+models:
+  - name: quarantine_rack_events
+    description: >
+      Events that failed a data quality check. They never enter marts. Spec name:
+      ops.quarantine_rack_events.
+    columns:
+      - name: event_id
+        description: Source event UUID.
+        data_tests: [unique, not_null]
+      - name: reason
+        description: invalid_transition or future_dated.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [invalid_transition, future_dated]
+      - name: run_id
+        description: Pipeline run that quarantined the row (dbt var run_id).
+        data_tests: [not_null]
+      - name: quarantined_at
+        description: When the row was quarantined, naive UTC.
+        data_tests: [not_null]

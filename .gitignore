@@ -31,3 +31,4 @@ crash.log
 Thumbs.db
 .idea/
 .vscode/
+dbt/.user.yml

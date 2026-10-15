@@ -1,0 +1,38 @@
+sources:
+  - name: raw
+    description: >
+      Raw layer, append-only, exactly as landed plus load metadata. On Redshift these are the
+      raw.* tables loaded by COPY; on the local DuckDB target, dbt-duckdb reads the same Parquet
+      files that land_to_raw writes, via each table's external_location (paths are relative to
+      dbt/, where dbt runs).
+    schema: raw
+    tables:
+      - name: rack_events
+        description: Rack lifecycle events, one row per landed line. Duplicates possible.
+        meta:
+          external_location: "read_parquet('../out/raw/rack_events/*/*.parquet', hive_partitioning = false)"
+        config:
+          loaded_at_field: _loaded_at
+          freshness:
+            error_after: {count: 26, period: hour}
+        columns:
+          - name: event_id
+            description: Source event UUID.
+          - name: rack_model
+            description: Payload v2 name for rack_type_code (schema drift, vendor V04 from 2026-03-01).
+      - name: vendor_contracts
+        description: Full vendor contract snapshot landed daily.
+        meta:
+          external_location: "read_parquet('../out/raw/vendor_contracts/*/*.parquet', hive_partitioning = false)"
+        config:
+          loaded_at_field: "cast(_ingest_date as timestamp)"
+          freshness:
+            error_after: {count: 26, period: hour}
+      - name: sites
+        description: Static site reference.
+        meta:
+          external_location: "read_parquet('../out/raw/sites/*.parquet')"
+      - name: rack_types
+        description: Static rack type reference.
+        meta:
+          external_location: "read_parquet('../out/raw/rack_types/*.parquet')"

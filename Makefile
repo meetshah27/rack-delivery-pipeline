@@ -2,7 +2,7 @@
 # Stubs exit 1 with the phase that implements them, so nothing silently "succeeds".
 
 SHELL := /bin/sh
-DBT_PROJECT := dbt/dbt_project.yml
+DBT := cd dbt && uv run dbt
 SIM_START := 2024-10-01
 SIM_END := 2026-09-30
 
@@ -10,12 +10,12 @@ define not_implemented
 	@echo "make $@: not implemented (BUILD_PLAN $(1))" >&2; exit 1
 endef
 
-.PHONY: setup lint typecheck test sim tf-plan tf-apply upload dbt-local dbt-build \
+.PHONY: setup lint typecheck test sim land-local dbt-deps tf-plan tf-apply upload dbt-local dbt-build \
 	schedule-on schedule-off evidence backfill cost qs-deploy qs-snapshot teardown
 
 setup:
 	uv sync
-	@if [ -f $(DBT_PROJECT) ]; then cd dbt && uv run dbt deps; else echo "dbt deps: skipped, no dbt project yet (Phase 4)"; fi
+	$(DBT) deps
 	uv run pre-commit install
 
 lint:
@@ -23,14 +23,13 @@ lint:
 	uv run ruff format --check .
 
 typecheck:
-	uv run mypy simulator ops
+	uv run mypy simulator ops orchestration
 
-# dbt test and sqlfluff join once the dbt project exists (Phase 4).
+# dbt test runs against the local warehouse, so run `make dbt-local` first.
 test:
 	uv run pytest -q
-	@if [ -f $(DBT_PROJECT) ]; then \
-		cd dbt && uv run dbt test --target local && uv run sqlfluff lint models; \
-	else echo "dbt test, sqlfluff: skipped, no dbt project yet (Phase 4)"; fi
+	$(DBT) test --target local
+	cd dbt && uv run sqlfluff lint models tests
 
 # Full 24-month history by default; `make sim DAYS=30` generates only the first N days.
 sim:
@@ -43,8 +42,20 @@ tf-plan tf-apply:
 upload:
 	$(call not_implemented,Phase 3)
 
-dbt-local dbt-build:
-	$(call not_implemented,Phase 4)
+# Local track: stand-in for the land_to_raw Lambda, landing JSONL -> raw Parquet in ./out/raw.
+land-local:
+	uv run python -m orchestration.land_to_raw --out ./out
+
+dbt-deps:
+	@test -d dbt/dbt_packages || ($(DBT) deps)
+
+dbt-local: land-local dbt-deps
+	mkdir -p local
+	$(DBT) seed --target local
+	$(DBT) build --target local
+
+dbt-build: dbt-deps
+	$(DBT) build --target dev
 
 backfill:
 	$(call not_implemented,Phase 5)

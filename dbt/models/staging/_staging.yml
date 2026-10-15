@@ -1,0 +1,109 @@
+models:
+  - name: stg_rack_events
+    description: >
+      Rack events typed and deduplicated: event_at parsed from its three source formats to
+      naive UTC, payload v2 rack_model mapped back to rack_type_code, codes uppercased, one row
+      per event_id keeping the latest _loaded_at.
+    columns:
+      - name: event_id
+        description: Source event UUID; unique after dedupe.
+        data_tests: [unique, not_null]
+      - name: rack_id
+        description: Natural rack key, e.g. RK-000123.
+        data_tests: [not_null]
+      - name: site_code
+        description: Site natural key.
+      - name: vendor_code
+        description: Vendor natural key.
+      - name: rack_type_code
+        description: Rack type natural key (from rack_model for payload v2).
+        data_tests: [not_null]
+      - name: status
+        description: Lifecycle status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [ORDERED, VENDOR_CONFIRMED, SHIPPED, RECEIVED, RACKED, CABLED, BURN_IN,
+                         PRODUCTION, DECOMMISSION_REQUESTED, DECOMMISSIONED]
+      - name: event_at
+        description: When the status change happened, naive UTC.
+        data_tests: [not_null]
+      - name: event_at_raw
+        description: event_at exactly as received, for auditing parse results.
+      - name: recorded_by
+        description: Technician id; nullable at source.
+      - name: payload_version
+        description: Source payload schema version (1 or 2).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+                quote: false
+      - name: _ingest_date
+        description: Landing partition the row arrived in.
+        data_tests: [not_null]
+      - name: _run_id
+        description: Pipeline run that loaded the row.
+      - name: _loaded_at
+        description: When the row was loaded into raw.
+      - name: _source_file
+        description: Landed file the row came from.
+
+  - name: stg_vendor_contracts
+    description: Daily full vendor contract snapshots, typed. One row per vendor per ingest date.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [vendor_code, _ingest_date]
+    columns:
+      - name: vendor_code
+        description: Vendor natural key.
+        data_tests: [not_null]
+      - name: vendor_name
+        description: Vendor display name.
+      - name: sla_days_order_to_production
+        description: SLA in days from order to production under this contract version.
+        data_tests: [not_null]
+      - name: contract_tier
+        description: gold, silver or bronze.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [gold, silver, bronze]
+      - name: region
+        description: Vendor home region.
+      - name: _ingest_date
+        description: Snapshot date.
+
+  - name: stg_sites
+    description: Data center sites, typed.
+    columns:
+      - name: site_code
+        description: Site natural key.
+        data_tests: [unique, not_null]
+      - name: site_name
+        description: Display name.
+      - name: site_region
+        description: us-west, us-east, eu-central or ap-south; drives row-level security.
+        data_tests: [not_null]
+      - name: country
+        description: ISO country code.
+      - name: capacity_racks
+        description: Rack positions at the site.
+      - name: opened_date
+        description: Date the site opened.
+
+  - name: stg_rack_types
+    description: Rack types, typed.
+    columns:
+      - name: rack_type_code
+        description: Rack type natural key.
+        data_tests: [unique, not_null]
+      - name: description
+        description: Display description.
+      - name: power_kw
+        description: Rated power draw.
+      - name: is_gpu
+        description: GPU racks have twice the burn-in time.
+        data_tests: [not_null]

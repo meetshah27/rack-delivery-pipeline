@@ -16,5 +16,10 @@ jobs:
         run: make lint
       - name: Mypy
         run: make typecheck
-      - name: Pytest
+      # Builds the dbt project end to end on a short simulation (local DuckDB target, no AWS).
+      - name: Simulate 60 days
+        run: make sim DAYS=60
+      - name: dbt build (local)
+        run: make dbt-local
+      - name: Pytest, dbt test, sqlfluff
         run: make test

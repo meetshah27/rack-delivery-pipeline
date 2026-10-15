@@ -1,0 +1,92 @@
+models:
+  - name: int_rack_events_checked
+    description: >
+      Every staged event with its data quality verdict: future-dated check, transition check
+      against the status_transitions seed (two passes, so a spurious event does not also fail
+      the real event after it), regression flag and lateness. quarantine_reason is null for
+      valid rows.
+    columns:
+      - name: event_id
+        description: Source event UUID.
+        data_tests: [unique, not_null]
+      - name: prev_status
+        description: Status of the previous non-spurious event of the rack; null for the first.
+      - name: prev_event_at
+        description: event_at of that previous event.
+      - name: is_valid_transition
+        description: prev_status -> status exists in the seed.
+        data_tests: [not_null]
+      - name: is_regression
+        description: Valid backward transition (failed burn-in).
+        data_tests: [not_null]
+      - name: is_gap_bridged
+        description: >
+          Valid only because the one missing intermediate status arrived future-dated for the
+          same rack (its timestamp is broken, the history is not).
+        data_tests: [not_null]
+      - name: is_future_dated
+        description: event_at more than 1 hour after the row was loaded (source clock bug).
+        data_tests: [not_null]
+      - name: late_by_days
+        description: Days between the event and the ingest date it arrived in.
+      - name: quarantine_reason
+        description: invalid_transition, future_dated, or null when the row is valid.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [invalid_transition, future_dated]
+
+  - name: int_rack_events_validated
+    description: Valid rack events only; the input to the fact tables.
+    columns:
+      - name: event_id
+        description: Source event UUID.
+        data_tests: [unique, not_null]
+      - name: rack_id
+        description: Natural rack key.
+        data_tests: [not_null]
+      - name: status
+        description: Lifecycle status.
+        data_tests: [not_null]
+      - name: prev_status
+        description: Previous valid status (LAG); null for the rack's first event.
+      - name: event_at
+        description: Event time, naive UTC.
+        data_tests: [not_null]
+      - name: is_regression
+        description: Valid backward transition (failed burn-in).
+      - name: is_gap_bridged
+        description: Follows its predecessor only across a status that arrived future-dated.
+      - name: late_by_days
+        description: Days between the event and the ingest date it arrived in.
+      - name: hours_since_prev_event
+        description: Hours since the rack's previous valid event.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+  - name: int_rack_status_islands
+    description: >
+      One row per run of consecutive same-status events per rack (gaps and islands), with the
+      entry number for that status and a flag for racks that entered the status more than once.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [rack_id, status, status_entry_number]
+    columns:
+      - name: rack_id
+        description: Natural rack key.
+        data_tests: [not_null]
+      - name: status
+        description: Lifecycle status of the island.
+      - name: island_started_at
+        description: First event of the island.
+      - name: island_ended_at
+        description: Last event of the island.
+      - name: event_count
+        description: Events collapsed into the island.
+      - name: status_entry_number
+        description: 1 for the first time the rack entered this status, 2 for the second, ...
+      - name: is_flapping
+        description: The rack entered this status more than once.
