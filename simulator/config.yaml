@@ -1,0 +1,94 @@
+# Simulator configuration. All randomness flows from `seed`.
+# Month numbers are 1-based from history_start (month 1 = Oct 2024).
+
+seed: 42
+history_start: 2024-10-01
+
+# Site capacity is drawn per site from this range with the seed.
+capacity_range: [800, 4000]
+
+arrivals:
+  # Poisson mean orders per day before lifts. ~50k racks over 24 months.
+  base_daily_orders: 51
+  q4_lift: 1.3              # Oct-Dec multiplier
+  expansion_from_month: 12  # capacity expansion step-up
+  expansion_factor: 1.5
+
+durations:
+  # Lognormal, given as mean/std in days. Vendor lead/transit live on vendors,
+  # install on sites, burn-in here scaled for GPU rack types.
+  burn_in_mean_days: 3.0
+  burn_in_std_days: 1.0
+  gpu_burn_in_multiplier: 2.0
+  retest_mean_days: 1.5      # failed burn-in back to BURN_IN
+  retest_std_days: 0.5
+  decommission_mean_days: 7.0
+  decommission_std_days: 3.0
+  lifespan_years: [3, 5]
+  early_decommission_rate: 0.02
+  early_decommission_days: [60, 540]
+  technicians_per_site: 12
+
+defects:
+  duplicate_rate: 0.015
+  duplicate_delay_days: [1, 7]
+  late_delay_days: [3, 10]          # rate is per vendor (vendors[].late_rate)
+  very_late_rate: 0.002
+  very_late_delay_days: [30, 60]
+  out_of_order_file_rate: 0.05
+  format_drift_rate: 0.10
+  schema_drift_from: 2026-03-01
+  schema_drift_vendor: V04
+  invalid_transition_rate: 0.003
+  regression_rate: 0.01
+  future_dated_rate: 0.0005
+  future_dated_offset_days: 365
+  null_recorded_by_rate: 0.04
+  missing_day: 2025-08-17           # no file lands; next day carries double volume
+
+sites:
+  - {code: SEA-01, name: Seattle 1,    region: us-west,    country: US, utc_offset_minutes: -480, install_mean_days: 4.0, install_std_days: 1.5}
+  - {code: SEA-02, name: Seattle 2,    region: us-west,    country: US, utc_offset_minutes: -480, install_mean_days: 4.5, install_std_days: 1.5}
+  - {code: PDX-01, name: Portland 1,   region: us-west,    country: US, utc_offset_minutes: -480, install_mean_days: 3.5, install_std_days: 1.0}
+  - {code: SJC-01, name: San Jose 1,   region: us-west,    country: US, utc_offset_minutes: -480, install_mean_days: 5.0, install_std_days: 2.0}
+  - {code: PHX-01, name: Phoenix 1,    region: us-west,    country: US, utc_offset_minutes: -420, install_mean_days: 3.5, install_std_days: 1.0}
+  - {code: LAS-01, name: Las Vegas 1,  region: us-west,    country: US, utc_offset_minutes: -480, install_mean_days: 4.0, install_std_days: 1.2}
+  - {code: IAD-01, name: Ashburn 1,    region: us-east,    country: US, utc_offset_minutes: -300, install_mean_days: 4.0, install_std_days: 1.5}
+  - {code: IAD-02, name: Ashburn 2,    region: us-east,    country: US, utc_offset_minutes: -300, install_mean_days: 6.0, install_std_days: 2.5}
+  - {code: ATL-01, name: Atlanta 1,    region: us-east,    country: US, utc_offset_minutes: -300, install_mean_days: 4.5, install_std_days: 1.5}
+  - {code: CMH-01, name: Columbus 1,   region: us-east,    country: US, utc_offset_minutes: -300, install_mean_days: 3.5, install_std_days: 1.0}
+  - {code: NYC-01, name: New York 1,   region: us-east,    country: US, utc_offset_minutes: -300, install_mean_days: 5.5, install_std_days: 2.0}
+  - {code: FRA-01, name: Frankfurt 1,  region: eu-central, country: DE, utc_offset_minutes: 60,   install_mean_days: 4.0, install_std_days: 1.2}
+  - {code: FRA-02, name: Frankfurt 2,  region: eu-central, country: DE, utc_offset_minutes: 60,   install_mean_days: 4.5, install_std_days: 1.5}
+  - {code: AMS-01, name: Amsterdam 1,  region: eu-central, country: NL, utc_offset_minutes: 60,   install_mean_days: 3.5, install_std_days: 1.0}
+  - {code: DUB-01, name: Dublin 1,     region: eu-central, country: IE, utc_offset_minutes: 0,    install_mean_days: 5.0, install_std_days: 2.0}
+  - {code: BOM-01, name: Mumbai 1,     region: ap-south,   country: IN, utc_offset_minutes: 330,  install_mean_days: 5.0, install_std_days: 2.0}
+  - {code: BOM-02, name: Mumbai 2,     region: ap-south,   country: IN, utc_offset_minutes: 330,  install_mean_days: 5.5, install_std_days: 2.0}
+  - {code: HYD-01, name: Hyderabad 1,  region: ap-south,   country: IN, utc_offset_minutes: 330,  install_mean_days: 4.5, install_std_days: 1.5}
+  - {code: MAA-01, name: Chennai 1,    region: ap-south,   country: IN, utc_offset_minutes: 330,  install_mean_days: 6.5, install_std_days: 2.5}
+  - {code: DEL-01, name: Delhi 1,      region: ap-south,   country: IN, utc_offset_minutes: 330,  install_mean_days: 5.0, install_std_days: 1.5}
+
+vendors:
+  - {code: V01, name: Northwind Racks,    region: us-west,    weight: 0.20, lead_mean_days: 21, lead_std_days: 4,  transit_mean_days: 4, transit_std_days: 1.0, late_rate: 0.01, sla_days: 40, tier: gold}
+  - {code: V02, name: Cascade Systems,    region: us-west,    weight: 0.18, lead_mean_days: 28, lead_std_days: 10, transit_mean_days: 5, transit_std_days: 2.0, late_rate: 0.03, sla_days: 50, tier: silver}
+  - {code: V03, name: Halcyon Hardware,   region: us-east,    weight: 0.15, lead_mean_days: 18, lead_std_days: 3,  transit_mean_days: 4, transit_std_days: 1.0, late_rate: 0.01, sla_days: 45, tier: gold}
+  - {code: V04, name: Ironbark Supply,    region: ap-south,   weight: 0.15, lead_mean_days: 35, lead_std_days: 8,  transit_mean_days: 8, transit_std_days: 3.0, late_rate: 0.08, sla_days: 60, tier: bronze}
+  - {code: V05, name: Meridian Compute,   region: eu-central, weight: 0.17, lead_mean_days: 25, lead_std_days: 6,  transit_mean_days: 5, transit_std_days: 1.5, late_rate: 0.02, sla_days: 45, tier: gold,
+     degrade_from_month: 16, degrade_lead_multiplier: 1.4}
+  - {code: V06, name: Summit Integration, region: us-east,    weight: 0.15, lead_mean_days: 30, lead_std_days: 5,  transit_mean_days: 5, transit_std_days: 1.5, late_rate: 0.02, sla_days: 50, tier: silver}
+
+rack_types:
+  - {code: CPU-42U-STD, description: Standard compute 42U,  power_kw: 12, is_gpu: false, weight: 0.25}
+  - {code: CPU-48U-STD, description: Standard compute 48U,  power_kw: 15, is_gpu: false, weight: 0.20}
+  - {code: CPU-HPC,     description: High-density compute,  power_kw: 25, is_gpu: false, weight: 0.10}
+  - {code: STO-HD,      description: High-density storage,  power_kw: 10, is_gpu: false, weight: 0.15}
+  - {code: NET-SPINE,   description: Network spine,         power_kw: 8,  is_gpu: false, weight: 0.05}
+  - {code: NET-LEAF,    description: Network leaf,          power_kw: 6,  is_gpu: false, weight: 0.10}
+  - {code: GPU-8X,      description: 8-GPU training rack,   power_kw: 45, is_gpu: true,  weight: 0.07}
+  - {code: GPU-4X,      description: 4-GPU inference rack,  power_kw: 30, is_gpu: true,  weight: 0.08}
+
+# SCD2 fuel: effective from the first day of the given month.
+contract_changes:
+  - {vendor: V03, month: 9,  field: sla_days, value: 35}
+  - {vendor: V05, month: 16, field: tier,     value: silver}
+  - {vendor: V02, month: 20, field: sla_days, value: 55}

@@ -3,7 +3,8 @@
 
 SHELL := /bin/sh
 DBT_PROJECT := dbt/dbt_project.yml
-DAYS ?= 30
+SIM_START := 2024-10-01
+SIM_END := 2026-09-30
 
 define not_implemented
 	@echo "make $@: not implemented (BUILD_PLAN $(1))" >&2; exit 1
@@ -24,16 +25,17 @@ lint:
 typecheck:
 	uv run mypy simulator ops
 
-# pytest exit code 5 means "no tests collected", which is fine until Phase 1.
 # dbt test and sqlfluff join once the dbt project exists (Phase 4).
 test:
-	uv run pytest -q || [ $$? -eq 5 ]
+	uv run pytest -q
 	@if [ -f $(DBT_PROJECT) ]; then \
 		cd dbt && uv run dbt test --target local && uv run sqlfluff lint models; \
 	else echo "dbt test, sqlfluff: skipped, no dbt project yet (Phase 4)"; fi
 
+# Full 24-month history by default; `make sim DAYS=30` generates only the first N days.
 sim:
-	$(call not_implemented,Phase 1)
+	uv run python -m simulator.generator --start-date $(SIM_START) \
+		$(if $(DAYS),--days $(DAYS),--end-date $(SIM_END)) --out ./out --seed 42
 
 tf-plan tf-apply:
 	$(call not_implemented,Phase 2)

@@ -3,7 +3,11 @@ name = "rack-delivery-pipeline"
 version = "0.1.0"
 description = "Rack lifecycle analytics pipeline: simulator, S3, Redshift Serverless, dbt, Step Functions, QuickSight."
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "numpy>=2.0",
+    "pyarrow>=17",
+    "pyyaml>=6.0",
+]
 
 [dependency-groups]
 dev = [
@@ -12,6 +16,7 @@ dev = [
     "pytest>=8.3",
     "ruff>=0.6",
     "sqlfluff>=3.1",
+    "types-pyyaml>=6.0",
 ]
 
 [tool.uv]
@@ -27,6 +32,10 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
