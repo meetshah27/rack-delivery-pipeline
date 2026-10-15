@@ -11,7 +11,7 @@ define not_implemented
 endef
 
 .PHONY: setup lint typecheck test sim land-local dbt-deps tf-plan tf-apply upload dbt-local dbt-build \
-	schedule-on schedule-off evidence backfill cost qs-deploy qs-snapshot teardown
+	schedule-on schedule-off evidence backfill ground-truth cost qs-deploy qs-snapshot teardown
 
 setup:
 	uv sync
@@ -49,16 +49,25 @@ land-local:
 dbt-deps:
 	@test -d dbt/dbt_packages || ($(DBT) deps)
 
+# The local warehouse is fully derived from ./out, so it starts fresh: staging first, then the
+# vendor contract history is replayed into the SCD2 snapshot, then everything else.
 dbt-local: land-local dbt-deps
-	mkdir -p local
-	$(DBT) seed --target local
+	rm -f local/warehouse.duckdb && mkdir -p local
+	$(DBT) build --target local --select staging seeds
+	uv run python -m ops.snapshot_replay --target local
 	$(DBT) build --target local
 
 dbt-build: dbt-deps
 	$(DBT) build --target dev
 
+# Rebuild both facts for racks with events ingested in [START, END]; prints row counts and
+# md5 checksums. Run twice: identical output proves idempotency.
+TARGET ?= local
 backfill:
-	$(call not_implemented,Phase 5)
+	uv run python -m ops.backfill --start $(START) --end $(END) --target $(TARGET)
+
+ground-truth:
+	uv run python -m ops.ground_truth --target $(TARGET)
 
 schedule-on schedule-off cost:
 	$(call not_implemented,Phase 6)

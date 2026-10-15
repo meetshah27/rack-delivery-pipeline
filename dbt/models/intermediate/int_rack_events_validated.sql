@@ -15,7 +15,5 @@ with checked as (
 
 select
     {{ columns | join(',\n    ') }},
-    cast(
-        {{ dbt.datediff('prev_event_at', 'event_at', 'second') }} / 3600.0 as decimal(10, 2)  -- noqa: LT05
-    ) as hours_since_prev_event
+    {{ hours_between('prev_event_at', 'event_at') }} as hours_since_prev_event  -- noqa: LT05
 from checked

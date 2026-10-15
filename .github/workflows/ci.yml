@@ -23,3 +23,9 @@ jobs:
         run: make dbt-local
       - name: Pytest, dbt test, sqlfluff
         run: make test
+      - name: Backfill is idempotent
+        run: |
+          make backfill START=2024-11-01 END=2024-11-15 | grep fct_ > run1.txt
+          make backfill START=2024-11-01 END=2024-11-15 | grep fct_ > run2.txt
+          cat run1.txt
+          diff run1.txt run2.txt

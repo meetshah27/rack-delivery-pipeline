@@ -237,7 +237,7 @@ def write_ground_truth(out: Path, results: list[lc.RackResult], as_of: date) -> 
         regressed = r.regression_at is not None and r.regression_at < horizon
         columns["regression_count"].append(1 if regressed else 0)
 
-    ts_type = pa.timestamp("s", tz="UTC")
+    ts_type = pa.timestamp("s")  # naive UTC, the warehouse convention
     table = pa.table(
         {
             name: pa.array(

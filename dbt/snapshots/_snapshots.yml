@@ -1,0 +1,16 @@
+snapshots:
+  - name: snap_vendor_contracts
+    description: >
+      SCD2 history of vendor contracts (check strategy on SLA days and contract tier).
+      dbt_valid_from is the contract date; the current version has dbt_valid_to 9999-12-31.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [vendor_code, dbt_valid_from]
+    columns:
+      - name: vendor_code
+        description: Vendor natural key.
+        data_tests: [not_null]
+      - name: dbt_valid_from
+        description: First contract date of this version.
+        data_tests: [not_null]

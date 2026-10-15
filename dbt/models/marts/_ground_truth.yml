@@ -1,0 +1,12 @@
+sources:
+  - name: ground_truth
+    description: >
+      True milestone timestamps written by the simulator (never uploaded to the landing
+      bucket). Used only by tests to check that the pipeline recovers the truth. Locally it is
+      read from the simulator output; on the dev target it must be loaded into
+      ground_truth.racks first.
+    schema: ground_truth
+    tables:
+      - name: racks
+        meta:
+          external_location: "read_parquet('../out/_ground_truth/racks.parquet')"

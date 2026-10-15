@@ -13,6 +13,15 @@ clean-targets: ["target", "dbt_packages"]
 vars:
   # Overridden by the orchestrator with the Step Functions run id.
   run_id: manual
+  # Incremental facts recompute racks with events ingested in the last N days...
+  lookback_days: 14
+  # ...or, for a backfill, in [start_date, end_date] (make backfill START=... END=...).
+  start_date:
+  end_date:
+  # Contract snapshot date to capture; default is the latest landed (ops/snapshot_replay.py
+  # replays history one change date at a time).
+  contracts_as_of:
+  fiscal_year_start_month: 1
 
 models:
   rack_delivery:
@@ -24,6 +33,7 @@ models:
       +materialized: table
     marts:
       +schema: marts
+      +materialized: table
     ops:
       +schema: ops
       +materialized: table

@@ -4,7 +4,7 @@ How long does it take to get a server rack from purchase order to serving produc
 
 This repo answers that with a production-style analytics pipeline. Synthetic rack lifecycle events land in Amazon S3, dbt models them into a Kimball star schema on Amazon Redshift Serverless, AWS Step Functions runs it daily, and Amazon QuickSight shows the results.
 
-> **Status: in progress.** The local track runs end to end on DuckDB with no AWS account: the event simulator, raw ingestion, and the dbt staging, validation and quarantine layers. The star schema, AWS deployment and dashboard are next. See [Roadmap](#roadmap).
+> **Status: in progress.** The local track is complete and runs end to end on DuckDB with no AWS account: event simulator, raw ingestion, validation and quarantine, SCD2 vendor history, the star schema and aggregate marts, with idempotent backfills. The AWS deployment and QuickSight dashboard are next. See [Roadmap](#roadmap).
 
 ## The questions the dashboard will answer
 
@@ -68,7 +68,7 @@ Reproduce: `make sim` prints this table.
 | Schema drift | raw + staging | Raw keeps both columns; staging maps `rack_model` back by `payload_version`. |
 | Invalid transitions | `int_rack_events_checked` | Checked against the allowed-transition seed in two passes, so one bad event does not also condemn the real event after it. |
 | Future-dated events | `int_rack_events_checked` | Compared with the row's load time, not wall-clock now, so a rebuild always reaches the same verdict. |
-| Late events | lookback window (Phase 5) | Ordering uses event time, not arrival time; `late_by_days` is kept for the audit metric. |
+| Late events | incremental facts | Ordering uses event time, not arrival time. Each run recomputes every rack with an event ingested in the last 14 days, so a late event lands in the right place and fixes the durations around it. `late_by_days` feeds the audit metric. |
 
 Rows that fail a check go to `ops.quarantine_rack_events` with a reason and never reach the marts. Quarantine counts match what the simulator injected:
 
@@ -90,13 +90,56 @@ select reason, count(*) from ops.quarantine_rack_events group by 1;
 
 dbt layers: `staging` (views, typed and deduplicated), `intermediate` (validation, gaps and islands), `marts` (star schema), `ops` (quarantine and run audit).
 
-The star schema (Phase 5) has two facts at different grains sharing conformed dimensions:
+The star schema has two facts at different grains sharing conformed dimensions:
 
-- `fct_rack_status_event`: transaction fact, one row per valid status change.
-- `fct_rack_delivery`: accumulating snapshot, one row per rack, with milestone timestamps and stage durations updated in place.
-- `dim_vendor` is SCD Type 2, because vendor SLAs change over time and each rack is judged against the SLA in effect when it was ordered.
+| Model | Type | Grain | Rows |
+|---|---|---|---|
+| `fct_rack_status_event` | transaction fact, incremental | one valid status change | 390,284 |
+| `fct_rack_delivery` | accumulating snapshot, incremental | one rack | 50,612 |
+| `dim_vendor` | SCD Type 2 | one contract version | 9 |
+| `dim_site`, `dim_rack_type` | SCD Type 1 | one site / rack type | 20 / 8 |
+| `dim_date` | generated | one day, 2023 to 2028 | 2,192 |
+| `agg_cycle_time_monthly`, `agg_daily_throughput`, `agg_sla_vendor_monthly` | aggregates for QuickSight | month x vendor x site x stage, site x day, vendor x month | |
+
+**SCD2 vendor contracts.** Vendor SLAs change mid-history, and each rack is judged against the SLA in effect when it was ordered (an as-of join on `valid_from <= ordered_at < valid_to`). `dim_vendor` comes from a dbt snapshot with the check strategy. A snapshot only records what it sees when it runs, so a backfill of 24 months of contract files would capture one version per vendor. `ops/snapshot_replay.py` replays the snapshot once per date on which a contract changed. The result is the 3 changes the simulator made:
+
+| Vendor | Versions |
+|---|---|
+| V02 | 50-day SLA, then 55 days from 2026-05-01 |
+| V03 | 45-day SLA, then 35 days from 2025-06-01 |
+| V05 | gold tier, then silver from 2026-01-01 |
+| others | one version |
+
+**Incremental facts.** Both facts recompute whole racks rather than single events: every rack with an event ingested in the last 14 days, or in `[start_date, end_date]` for a backfill. A late event can change the previous status and the durations of events already loaded, so the whole rack is recomputed. `fct_rack_delivery` also recomputes every open rack each run, because its overdue flag moves with the clock. Facts use `merge` on Redshift and `delete+insert` on DuckDB, chosen by an adapter-dispatched macro.
 
 Full design: [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
+
+## Correctness checks
+
+| Check | Result | Reproduce |
+|---|---|---|
+| Pipeline recovers the true `production_at` (simulator ground truth) | 99.88% of 50,627 racks match exactly (test fails below 99%) | `make ground-truth` |
+| Backfill is idempotent | Two runs of June 2025 give identical row counts and md5 checksums for both facts | `make backfill START=2025-06-01 END=2025-06-30`, twice |
+| Incremental equals full rebuild | Same row counts and checksums as `--full-refresh` | see `ops/backfill.py` |
+| Every model tested | 126 dbt nodes build with 0 errors (3 intentional warnings report quarantined and very late rows) | `make dbt-local` |
+
+All 61 racks that don't match are explained: 26 had their `PRODUCTION` event quarantined as future-dated, 19 have a `PRODUCTION` event that arrives after the window ends, and 16 have a `BURN_IN` event that arrives after the window ends, which leaves `PRODUCTION` without a valid predecessor until it lands.
+
+## What the data shows
+
+Early results from the aggregate marts, ahead of the dashboard:
+
+- **Vendor lead time drives cycle time.** Of a median 38.8 days from order to production, 25.6 are spent waiting on the vendor to ship; transit, install and burn-in take 4.6, 4.2 and 3.0.
+- **V05's degradation is visible.** Its on-time rate falls from 84% (H1 2025) to 40% (Apr to Sep 2026) as its lead times stretch.
+- **The SCD2 join matters.** V03's on-time rate drops from 99.8% to 88.5% after its SLA tightened from 45 to 35 days, without any change in how it performs. A dimension that only kept the current SLA would misreport its history.
+
+```sql
+-- duckdb local/warehouse.duckdb
+select vendor_code, sum(on_time) * 1.0 / sum(racks_completed)
+from marts.agg_sla_vendor_monthly
+where month between '2026-04-01' and '2026-09-30'
+group by 1;
+```
 
 ## Run it locally
 
@@ -105,8 +148,10 @@ Prerequisites: [uv](https://docs.astral.sh/uv/) and GNU Make. Python 3.12 is ins
 ```sh
 make setup        # dependencies, dbt packages, pre-commit hooks
 make sim          # 24 months of events into ./out (about 35 s); `make sim DAYS=60` for a short run
-make dbt-local    # landing -> raw Parquet, then dbt build on ./local/warehouse.duckdb
+make dbt-local    # landing -> raw Parquet, SCD2 replay, dbt build on ./local/warehouse.duckdb
 make test         # simulator tests, dbt tests, sqlfluff
+make backfill START=2025-06-01 END=2025-06-30   # rebuild a window, print counts and checksums
+make ground-truth # how well the facts recover the simulator's true milestones
 ```
 
 Continue the simulation one day at a time from saved state, the way the scheduled pipeline will:
@@ -115,16 +160,16 @@ Continue the simulation one day at a time from saved state, the way the schedule
 uv run python -m simulator.generator --daily --date 2026-10-01 --out ./out
 ```
 
-CI runs lint, strict type checks, the simulator tests, and a full dbt build on a 60-day simulation on every push.
+CI runs lint, strict type checks, the simulator tests, a full dbt build on a 60-day simulation, and the backfill idempotency check on every push.
 
 ## Repository layout
 
 ```
 simulator/       event generator, config.yaml, tests
 orchestration/   land_to_raw conversion (Lambda handlers and state machine to come)
-dbt/             models (staging, intermediate, marts, ops), macros, seeds, tests
+dbt/             models (staging, intermediate, marts, ops), snapshots, macros, seeds, tests, analyses
 infra/           Terraform (Phase 2)
-ops/             cost report, backfill and QuickSight scripts (later phases)
+ops/             snapshot replay, backfill, ground-truth report (cost and QuickSight scripts later)
 dashboards/      QuickSight definition JSON (Phase 7)
 docs/            specs and build plan
 ```
@@ -136,7 +181,7 @@ docs/            specs and build plan
 | 0 | Scaffold, tooling, CI | Done |
 | 1 | Event simulator with defects | Done |
 | 4 | dbt staging, validation, quarantine | Done on DuckDB |
-| 5 | Dimensions, SCD2, facts, idempotent backfill, ground-truth check | Next |
+| 5 | Dimensions, SCD2, facts, idempotent backfill, ground-truth check | Done on DuckDB |
 | 2, 3 | Terraform, S3 to Redshift ingestion | Deployment window |
 | 6 | Step Functions, EventBridge schedule, alarms, cost per run | Deployment window |
 | 7 | QuickSight dashboard as code with row-level security | Deployment window |
@@ -150,3 +195,5 @@ The AWS work runs in one short window, inside the free trials, and is then torn 
 - The spec targets about 50k racks and 2 to 4 million events, which cannot both hold: a rack has at most about 10 events. The simulator keeps the rack count; raising `base_daily_orders` in `simulator/config.yaml` scales event volume.
 - The Redshift target is configured but has not been run yet; it is verified in the deployment window.
 - Quarantine is rebuilt on each run, so it shows the current verdict rather than a history; the run audit (Phase 6) will record per-run counts.
+- `days_in_current_status` is refreshed every run for open racks only; for racks already in production it is as of their last recompute.
+- On Redshift, the ground-truth test needs the simulator's `racks.parquet` loaded into `ground_truth.racks` first.

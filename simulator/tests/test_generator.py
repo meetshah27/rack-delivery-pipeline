@@ -58,7 +58,7 @@ def test_ground_truth_milestones_monotonic(full_run: tuple[Path, RunStats]) -> N
     out, _ = full_run
     table = pq.read_table(out / "_ground_truth" / "racks.parquet")
     columns = list(MILESTONE_COLUMNS.values())
-    # Compare as epoch seconds; tz-aware -> datetime conversion needs tzdata on Windows.
+    # Compare as epoch seconds; simple and exact.
     rows = pa.table(
         {"rack_id": table.column("rack_id")}
         | {c: table.column(c).cast(pa.int64()) for c in columns}
