@@ -1,4 +1,4 @@
-# QuickSight (Phase 7; needs the Enterprise subscription first): a VPC connection into the
+# QuickSight (needs the Enterprise subscription first): a VPC connection into the
 # Redshift workgroup's subnets, the Redshift data source, the SPICE datasets defined in
 # dashboards/datasets.json (one definition shared with the dashboard builder), row-level
 # security on ds_delivery by site_region, and daily refresh schedules. The analysis and

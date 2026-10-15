@@ -382,7 +382,7 @@ resource "aws_scheduler_schedule" "daily" {
   name                         = "${var.name}-daily"
   schedule_expression          = "cron(0 6 * * ? *)"
   schedule_expression_timezone = "UTC"
-  # Created disabled (DEPLOY_WINDOW guardrail); `make schedule-on/off` flips it through the
+  # Created disabled (cost guardrail); `make schedule-on/off` flips it through the
   # API, so a later apply does not undo it.
   state = "DISABLED"
   lifecycle {

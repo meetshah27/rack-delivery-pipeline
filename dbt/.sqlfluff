@@ -30,5 +30,5 @@ capitalisation_policy = lower
 extended_capitalisation_policy = lower
 
 [sqlfluff:rules:references.keywords]
-# Column names fixed by docs/DATA_MODEL.md and the P3 golden queries.
+# Column names fixed by the data model and the metric-layer-nlq golden queries.
 ignore_words = date,year,quarter,month,stage

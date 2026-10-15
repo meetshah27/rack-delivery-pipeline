@@ -1,4 +1,4 @@
--- SPEC 6 (warn): daily raw row count within 50% to 200% of the trailing 7-day mean.
+-- Data quality (warn): daily raw row count within 50% to 200% of the trailing 7-day mean.
 -- A missing day shows up as the next day's double volume.
 {{ config(severity='warn') }}
 

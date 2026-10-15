@@ -1,5 +1,5 @@
 """Build dashboards/rack_delivery_definition.json: the QuickSight analysis/dashboard definition
-for the four sheets in docs/DASHBOARD_SPEC.md.
+for the four sheets: Executive, Cycle Time, SLA Breaches, Pipeline Health.
 
 The definition is generated rather than hand-written: QuickSight's Definition JSON runs to
 thousands of lines. Two checks run here, without an AWS account:

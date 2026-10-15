@@ -1,4 +1,4 @@
--- Access per SPEC section 9. Redshift only; applied by ops/redshift_admin.py as the namespace
+-- Least-privilege access per role. Redshift only; applied by ops/redshift_admin.py as the namespace
 -- admin, which creates the users first. Placeholders such as $dbt_user come from Terraform
 -- outputs.
 --

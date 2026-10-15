@@ -1,4 +1,4 @@
-# rack-delivery-pipeline. Targets mirror CLAUDE.md "Commands".
+# rack-delivery-pipeline: local track (simulator, DuckDB) and AWS deployment targets.
 # Configuration comes from .env (copy .env.example); nothing account-specific lives here.
 
 SHELL := /bin/sh

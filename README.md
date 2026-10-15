@@ -18,7 +18,7 @@ A production-style analytics pipeline that answers that question. Rack lifecycle
 | SLA Breaches | Who is late, and which racks? | Overdue open racks sorted by days overdue, breaches by vendor and contract tier, drill-down from vendor to site to rack |
 | Pipeline Health | Can I trust today's numbers? | Last run status, hours since the last successful run, quarantine rate per run against a 5% line, cost per run, the last 14 runs |
 
-Row-level security restricts each reader to their own region's sites. Every visual is titled with the question it answers. Full spec: [docs/DASHBOARD_SPEC.md](docs/DASHBOARD_SPEC.md).
+Row-level security restricts each reader to their own region's sites. Every visual is titled with the question it answers.
 
 ## Architecture
 
@@ -123,7 +123,7 @@ erDiagram
 
 **Contracts and the semantic layer.** Every mart has an enforced dbt model contract: each column is declared with an explicit type, and a breaking change fails the build before the table is replaced. On top of the marts, `dbt/models/semantic/` defines 12 governed KPIs (on-time delivery rate, p90 end-to-end days, overdue open racks and more) in the dbt Semantic Layer. They are the single definition of each metric, and the grounding for the natural-language query service in [metric-layer-nlq](https://github.com/meetshah27/metric-layer-nlq).
 
-**Analytical SQL used:** `LAG`/`LEAD` (transition checks, time since previous event), gaps and islands (`int_rack_status_islands`), conditional-aggregation pivot (milestones), `PERCENTILE_CONT ... WITHIN GROUP` (cycle-time percentiles), SCD2 as-of joins, moving averages and running totals (`agg_daily_throughput`), `QUALIFY` dedupe, and order-month cohort analysis (`dbt/analyses/`). Full design: [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
+**Analytical SQL used:** `LAG`/`LEAD` (transition checks, time since previous event), gaps and islands (`int_rack_status_islands`), conditional-aggregation pivot (milestones), `PERCENTILE_CONT ... WITHIN GROUP` (cycle-time percentiles), SCD2 as-of joins, moving averages and running totals (`agg_daily_throughput`), `QUALIFY` dedupe, and order-month cohort analysis (`dbt/analyses/`).
 
 ## Results
 
@@ -165,7 +165,7 @@ make ground-truth # how well the facts recover the true milestones
 make mf-validate  # semantic layer checks
 ```
 
-On AWS, in one deployment window (`.env` from `.env.example`; the $1 budget and its deny-all action exist first, per [DEPLOY_WINDOW.md](docs/DEPLOY_WINDOW.md)):
+On AWS, in one deployment window (`.env` from `.env.example`; the $1 budget and its deny-all action exist first):
 
 ```sh
 make tf-bootstrap && make tf-init   # once: Terraform state bucket and lock table
@@ -195,7 +195,6 @@ dbt/             staging, intermediate, marts, ops and semantic models; snapshot
 infra/           Terraform (bootstrap, storage, warehouse, pipeline, quicksight, dev env) and SQL migrations
 ops/             packaging, migrations, pipeline runners, backfill, ground truth, cost, QuickSight build/deploy/snapshot/RLS check, evidence, teardown check
 dashboards/      QuickSight dataset definitions and the generated dashboard definition
-docs/            spec, data model, dashboard spec, simulator spec, build plan
 ```
 
 ## Implementation status
@@ -204,12 +203,12 @@ docs/            spec, data model, dashboard spec, simulator spec, build plan
 |---|---|
 | Simulator, raw conversion, dbt staging through marts, SCD2, contracts, semantic layer, backfill and ground-truth checks | Built and verified on DuckDB (numbers above) |
 | Terraform (bootstrap + 4 modules), Lambda handlers, Step Functions definition, CodeBuild buildspec, Redshift migrations, QuickSight datasets and dashboard definition, ops scripts | Built and checked without AWS: `terraform validate`, Lambda handlers run end to end against an in-memory S3 and a DuckDB-backed Redshift Data API, state machine graph checks, dashboard JSON validated against QuickSight's API schema |
-| The deployment itself: Redshift, the 7-day scheduled run, QuickSight, cost per run, evidence | Not yet run; happens in one cost-capped AWS window, then torn down ([plan](docs/DEPLOY_WINDOW.md)) |
+| The deployment itself: Redshift, the 7-day scheduled run, QuickSight, cost per run, evidence | Not yet run; happens in one cost-capped AWS window, then torn down |
 
 ## Limitations
 
 - The data is synthetic: the rates and vendor personalities are designed, not observed.
-- The spec's targets of about 50k racks and 2 to 4 million events cannot both hold, because a rack has at most about 10 events. The simulator keeps the rack count; `base_daily_orders` in `simulator/config.yaml` scales volume.
+- The original volume targets of about 50k racks and 2 to 4 million events cannot both hold, because a rack has at most about 10 events. The simulator keeps the rack count; `base_daily_orders` in `simulator/config.yaml` scales volume.
 - Quarantine is rebuilt each run, so it shows the current verdict; per-run counts live in the audit table.
 - `days_in_current_status` is refreshed every run for open racks only; for racks already in production it is as of their last recompute.
 - The ground-truth test reads the simulator's `racks.parquet`, which must be loaded into `ground_truth.racks` on Redshift.

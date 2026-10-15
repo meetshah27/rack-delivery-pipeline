@@ -1,4 +1,4 @@
--- SPEC 6 (error): each rack with a valid event has exactly one row in fct_rack_delivery.
+-- Data quality (error): each rack with a valid event has exactly one row in fct_rack_delivery.
 with expected as (
 
     select distinct rack_id

@@ -1,8 +1,7 @@
 models:
   - name: quarantine_rack_events
     description: >
-      Events that failed a data quality check. They never enter marts. Spec name:
-      ops.quarantine_rack_events.
+      Events that failed a data quality check. They never enter marts.
     columns:
       - name: event_id
         description: Source event UUID.

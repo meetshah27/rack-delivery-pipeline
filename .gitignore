@@ -35,3 +35,13 @@ Thumbs.db
 .idea/
 .vscode/
 dbt/.user.yml
+
+# Local planning notes and assistant context (not part of the project)
+CLAUDE.md
+docs/BUILD_PLAN.md
+docs/SPEC.md
+docs/DATA_MODEL.md
+docs/DASHBOARD_SPEC.md
+docs/SIMULATOR_SPEC.md
+docs/DEPLOY_WINDOW.md
+docs/INTERVIEW_PREP.md

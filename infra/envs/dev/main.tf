@@ -54,7 +54,7 @@ variable "rpu_hour_usd" {
 }
 
 variable "enable_quicksight" {
-  description = "Phase 7, after subscribing to QuickSight Enterprise."
+  description = "After subscribing to QuickSight Enterprise."
   type        = bool
   default     = false
 }

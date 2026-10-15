@@ -1,4 +1,4 @@
--- SPEC 6 (warn): events more than 1 hour after their load time are quarantined.
+-- Data quality (warn): events more than 1 hour after their load time are quarantined.
 {{ config(severity='warn') }}
 
 select

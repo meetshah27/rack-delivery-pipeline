@@ -1,4 +1,4 @@
--- SPEC 6 (warn): events arriving more than 30 days late (also reported as an audit metric).
+-- Data quality (warn): events arriving more than 30 days late (also reported as an audit metric).
 {{ config(severity='warn') }}
 
 select

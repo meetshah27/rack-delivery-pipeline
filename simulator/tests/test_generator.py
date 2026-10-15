@@ -1,4 +1,4 @@
-"""The four simulator tests from docs/SIMULATOR_SPEC.md."""
+"""Simulator guarantees: reproducible, defect rates as configured, valid truth, daily mode."""
 
 from __future__ import annotations
 

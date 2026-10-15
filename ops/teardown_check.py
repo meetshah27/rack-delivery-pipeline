@@ -1,4 +1,4 @@
-"""After `terraform destroy`: prove nothing billable is left (DEPLOY_WINDOW teardown checklist).
+"""After `terraform destroy`: prove nothing billable is left (teardown checklist).
 
 Exits non-zero if any check finds something. The Terraform state bucket and lock table are
 expected to remain until `make teardown-state`.

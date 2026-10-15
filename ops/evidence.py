@@ -1,4 +1,4 @@
-"""`make evidence` (Phase 9): artifacts that outlive the AWS teardown.
+"""`make evidence`: artifacts that outlive the AWS teardown.
 
 - evidence/pipeline_run_audit.csv: every pipeline run
 - evidence/cost_report.csv: cost per run for the last 7 days

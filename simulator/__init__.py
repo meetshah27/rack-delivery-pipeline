@@ -1,1 +1,1 @@
-"""Rack lifecycle event simulator. See docs/SIMULATOR_SPEC.md."""
+"""Rack lifecycle event simulator with deliberate data defects."""

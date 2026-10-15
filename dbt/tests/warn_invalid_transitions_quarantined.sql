@@ -1,4 +1,4 @@
--- SPEC 6 (warn): transitions missing from the status_transitions seed are quarantined.
+-- Data quality (warn): transitions missing from the status_transitions seed are quarantined.
 {{ config(severity='warn') }}
 
 select

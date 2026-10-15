@@ -1,4 +1,4 @@
--- SPEC 6 (error): every event that reaches the validated layer follows an allowed transition,
+-- Data quality (error): every event that reaches the validated layer follows an allowed transition,
 -- directly or across a gap bridged by a future-dated event (see int_rack_events_checked).
 select
     validated.event_id,

@@ -1,4 +1,4 @@
-"""Rack lifecycle event generator. See docs/SIMULATOR_SPEC.md.
+"""Rack lifecycle event generator: reproducible from one seed, with deliberate defects.
 
 Full run:   python -m simulator.generator --start-date 2024-10-01 --end-date 2026-09-30 --out ./out
 Daily mode: python -m simulator.generator --daily --date 2026-10-01 --out ./out
