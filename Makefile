@@ -3,7 +3,10 @@
 
 SHELL := /bin/sh
 -include .env
-export AWS_PROFILE AWS_REGION REDSHIFT_HOST REDSHIFT_WORKGROUP REDSHIFT_DATABASE QS_OWNER_ARN 	RLS_READER_EMAIL_US_WEST RLS_READER_EMAIL_AP_SOUTH
+# Pass .env settings to commands only when set: an empty AWS_PROFILE would make boto3 look for
+# a profile named "".
+ENV_KEYS := AWS_PROFILE AWS_REGION REDSHIFT_HOST REDSHIFT_WORKGROUP REDSHIFT_DATABASE 	QS_OWNER_ARN RLS_READER_EMAIL_US_WEST RLS_READER_EMAIL_AP_SOUTH
+$(foreach key,$(ENV_KEYS),$(if $($(key)),$(eval export $(key))))
 
 DBT := cd dbt && uv run dbt
 TF := terraform
